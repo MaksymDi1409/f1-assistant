@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getTitleSeasons } from "@/lib/f1/champions";
 import { notFound } from "next/navigation";
 import {
   getDriver,
@@ -56,6 +57,7 @@ export default async function DriverPage({ params }: Props) {
   const seasonPodiums = seasonResults.filter(
     (r) => Number(r.result.position) <= 3,
   ).length;
+  const titleSeasons = getTitleSeasons(driver.driverId);
 
   return (
     <>
@@ -88,12 +90,19 @@ export default async function DriverPage({ params }: Props) {
         <StatCard label="Подіуми" value={seasonPodiums} />
       </div>
 
-      <h2 className="mb-3 text-xl font-semibold">Кар&apos;єра</h2>
-      <div className="mb-8 grid grid-cols-3 gap-3">
+            <h2 className="mb-3 text-xl font-semibold">Кар&apos;єра</h2>
+      <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Старти" value={career?.starts ?? "—"} />
         <StatCard label="Перемоги" value={career?.wins ?? "—"} />
         <StatCard label="Подіуми" value={career?.podiums ?? "—"} />
+        <StatCard label="Титули" value={titleSeasons.length} />
       </div>
+      {titleSeasons.length > 0 && (
+        <p className="mb-8 text-sm text-muted">
+          Чемпіон світу: {titleSeasons.join(", ")}
+        </p>
+      )}
+      {titleSeasons.length === 0 && <div className="mb-8" />}
 
       {seasonResults.length > 0 && (
         <>
