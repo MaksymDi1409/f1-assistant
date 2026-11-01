@@ -119,3 +119,15 @@ export async function getDriverCareerStats(driverId: string) {
 
   return { starts, wins, podiums: wins + seconds + thirds };
 }
+
+export async function getRaceWithResults(
+  season: string,
+  round: string,
+): Promise<{ race: Race; results: RaceResult[] } | null> {
+  const data = await jolpicaFetch<{
+    RaceTable: { Races: (Race & { Results: RaceResult[] })[] };
+  }>(`/${season}/${round}/results.json?limit=100`);
+
+  const race = data.RaceTable.Races[0];
+  return race ? { race, results: race.Results } : null;
+}
