@@ -1,5 +1,5 @@
 const BASE_URL = "https://api.openf1.org/v1";
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 4;
 
 // ---------- Типи відповідей ----------
 
@@ -47,7 +47,14 @@ async function openf1Fetch<T>(path: string, revalidate = DAY, attempt = 1): Prom
   const res = await fetch(`${BASE_URL}${path}`, { next: { revalidate } });
 
   if (res.status === 429 && attempt < MAX_ATTEMPTS) {
-    await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+    // Сервер може підказати, скільки чекати (заголовок Retry-After, у секундах)
+    const retryAfter = Number(res.headers.get("retry-after"));
+    const delayMs =
+      retryAfter > 0
+        ? Math.min(retryAfter * 1000, 10_000)
+        : 2 ** attempt * 1000; // 2 с, 4 с, 8 с
+
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
     return openf1Fetch<T>(path, revalidate, attempt + 1);
   }
 
