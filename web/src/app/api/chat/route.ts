@@ -1,7 +1,7 @@
 import { getProvider } from "@/lib/ai";
 import { buildSystemPrompt } from "@/lib/ai/system-prompt";
 import { f1Tools } from "@/lib/ai/tools";
-import type { ChatEvent, ChatMessage } from "@/lib/ai/types";
+import type { StreamEvent, ChatMessage } from "@/lib/ai/types";
 
 const MAX_MESSAGES = 20;
 const MAX_MESSAGE_LENGTH = 2000;
@@ -47,11 +47,15 @@ export async function POST(request: Request) {
 
   const encoder = new TextEncoder();
 
-  // Server-Sent Events: кожна подія — рядок "data: {...}" і порожній рядок
+    // Server-Sent Events: кожна подія — рядок "data: {...}" і порожній рядок
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (event: ChatEvent | { type: "done" }) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      const send = (event: StreamEvent) => {
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+        } catch {
+          // Клієнт уже відключився, надсилати нікуди
+        }
       };
 
       try {
@@ -60,6 +64,8 @@ export async function POST(request: Request) {
           messages,
           tools: f1Tools,
         })) {
+          // Користувач натиснув «Стоп» або закрив вкладку: припиняємо роботу з ШІ
+          if (request.signal.aborted) break;
           send(event);
         }
       } catch (error) {
@@ -67,7 +73,11 @@ export async function POST(request: Request) {
         send({ type: "error", message: "Не вдалося отримати відповідь від ШІ" });
       } finally {
         send({ type: "done" });
-        controller.close();
+        try {
+          controller.close();
+        } catch {
+          // Потік уже закрито
+        }
       }
     },
   });

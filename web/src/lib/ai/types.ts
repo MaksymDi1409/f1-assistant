@@ -30,3 +30,6 @@ export interface AIProvider {
   name: string;
   streamChat(request: ChatRequest): AsyncGenerator<ChatEvent>;
 }
+
+// Усе, що може прийти з /api/chat: події чату + сигнал завершення
+export type StreamEvent = ChatEvent | { type: "done" };
