@@ -2,6 +2,7 @@ import type {
   ConstructorStanding,
   DriverStanding,
   Race,
+  RaceResult,
 } from "./types";
 
 const BASE_URL = "https://api.jolpi.ca/ergast/f1";
@@ -49,4 +50,24 @@ export async function getConstructorStandings(
     };
   }>(`/${season}/constructorStandings.json?limit=100`);
   return data.StandingsTable.StandingsLists[0]?.ConstructorStandings ?? [];
+}
+
+export async function getRace(
+  season: string,
+  round: string,
+): Promise<Race | null> {
+  const data = await jolpicaFetch<{ RaceTable: { Races: Race[] } }>(
+    `/${season}/${round}.json`,
+  );
+  return data.RaceTable.Races[0] ?? null;
+}
+
+export async function getRaceResults(
+  season: string,
+  round: string,
+): Promise<RaceResult[]> {
+  const data = await jolpicaFetch<{
+    RaceTable: { Races: { Results: RaceResult[] }[] };
+  }>(`/${season}/${round}/results.json?limit=100`);
+  return data.RaceTable.Races[0]?.Results ?? [];
 }

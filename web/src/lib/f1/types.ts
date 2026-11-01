@@ -65,3 +65,21 @@ export type ConstructorStanding = {
   wins: string;
   Constructor: Constructor;
 };
+
+export type RaceResult = {
+  number: string;
+  position: string;
+  positionText: string;
+  points: string;
+  Driver: Driver;
+  Constructor: Constructor;
+  grid: string;
+  laps: string;
+  status: string; // "Finished", "+1 Lap", "Retired"...
+  Time?: { millis: string; time: string };
+  FastestLap?: {
+    rank: string;
+    lap: string;
+    Time: { time: string };
+  };
+};
