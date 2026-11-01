@@ -28,3 +28,15 @@ export function formatSession(session: Session): string {
   const date = toDate(session.date, session.time);
   return session.time ? dateTimeFormatter.format(date) : formatDayMonth(date);
 }
+
+export function getAge(dateOfBirth: string): number {
+  const birth = new Date(dateOfBirth);
+  const now = new Date();
+  const age = now.getFullYear() - birth.getFullYear();
+
+  const hadBirthdayThisYear =
+    now.getMonth() > birth.getMonth() ||
+    (now.getMonth() === birth.getMonth() && now.getDate() >= birth.getDate());
+
+  return hadBirthdayThisYear ? age : age - 1;
+}
