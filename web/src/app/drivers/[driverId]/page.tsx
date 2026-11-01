@@ -97,9 +97,20 @@ export default async function DriverPage({ params }: Props) {
         <StatCard label="Подіуми" value={career?.podiums ?? "—"} />
         <StatCard label="Титули" value={titleSeasons.length} />
       </div>
-      {titleSeasons.length > 0 && (
+            {titleSeasons.length > 0 && (
         <p className="mb-8 text-sm text-muted">
-          Чемпіон світу: {titleSeasons.join(", ")}
+          Чемпіон світу:{" "}
+          {titleSeasons.map((season, i) => (
+            <span key={season}>
+              {i > 0 && ", "}
+              <Link
+                href={`/standings/${season}?driver=${driver.driverId}`}
+                className="text-foreground underline decoration-white/20 underline-offset-4 hover:text-accent hover:decoration-accent"
+              >
+                {season}
+              </Link>
+            </span>
+          ))}
         </p>
       )}
       {titleSeasons.length === 0 && <div className="mb-8" />}
