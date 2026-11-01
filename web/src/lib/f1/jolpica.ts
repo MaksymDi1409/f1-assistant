@@ -110,11 +110,12 @@ export async function getDriverSeasonResults(
 }
 
 export async function getDriverCareerStats(driverId: string) {
-  const [starts, wins, titles] = await Promise.all([
+  const [starts, wins, seconds, thirds] = await Promise.all([
     getTotal(`/drivers/${driverId}/results.json`),
     getTotal(`/drivers/${driverId}/results/1.json`), // фініш на 1 місці
-    getTotal(`/drivers/${driverId}/driverStandings/1.json`), // 1 місце в чемпіонаті
+    getTotal(`/drivers/${driverId}/results/2.json`),
+    getTotal(`/drivers/${driverId}/results/3.json`),
   ]);
 
-  return { starts, wins, titles };
+  return { starts, wins, podiums: wins + seconds + thirds };
 }

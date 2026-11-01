@@ -44,7 +44,7 @@ export default async function DriverPage({ params }: Props) {
   // Усі запити паралельно
   const [seasonResults, career, standings] = await Promise.all([
     getDriverSeasonResults(driver.driverId),
-    getDriverCareerStats(driver.driverId),
+    getDriverCareerStats(driver.driverId).catch(() => null),
     getDriverStandings(),
   ]);
 
@@ -90,9 +90,9 @@ export default async function DriverPage({ params }: Props) {
 
       <h2 className="mb-3 text-xl font-semibold">Кар&apos;єра</h2>
       <div className="mb-8 grid grid-cols-3 gap-3">
-        <StatCard label="Старти" value={career.starts} />
-        <StatCard label="Перемоги" value={career.wins} />
-        <StatCard label="Титули" value={career.titles} />
+        <StatCard label="Старти" value={career?.starts ?? "—"} />
+        <StatCard label="Перемоги" value={career?.wins ?? "—"} />
+        <StatCard label="Подіуми" value={career?.podiums ?? "—"} />
       </div>
 
       {seasonResults.length > 0 && (

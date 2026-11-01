@@ -1,13 +1,71 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import {
+  getConstructorStandings,
+  getDriverStandings,
+} from "@/lib/f1/jolpica";
+import type { DriverStanding } from "@/lib/f1/types";
 
 export const metadata: Metadata = { title: "Команди" };
 
-export default function TeamsPage() {
+export default async function TeamsPage() {
+  const [constructors, drivers] = await Promise.all([
+    getConstructorStandings(),
+    getDriverStandings(),
+  ]);
+
+  // Групуємо пілотів за їхньою поточною командою
+  const driversByTeam = new Map<string, DriverStanding[]>();
+  for (const s of drivers) {
+    const teamId = s.Constructors.at(-1)?.constructorId;
+    if (!teamId) continue;
+    driversByTeam.set(teamId, [...(driversByTeam.get(teamId) ?? []), s]);
+  }
+
   return (
-    <PageHeader
-      title="Команди"
-      description="Команди та їхні пілоти"
-    />
+    <>
+      <PageHeader title="Команди" description="Команди та їхні пілоти" />
+
+      {constructors.length === 0 ? (
+        <p className="text-muted">Сезон ще не розпочався.</p>
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {constructors.map((c) => (
+            <li
+              key={c.Constructor.constructorId}
+              className="rounded-xl border border-white/10 bg-surface p-4"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-muted">P{c.positionText}</p>
+                  <h2 className="text-xl font-bold">{c.Constructor.name}</h2>
+                  <p className="text-sm text-muted">{c.Constructor.nationality}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold tabular-nums">{c.points}</p>
+                  <p className="text-xs text-muted">
+                    очок · {c.wins} перемог
+                  </p>
+                </div>
+              </div>
+
+              <ul className="mt-4 flex flex-wrap gap-2">
+                {(driversByTeam.get(c.Constructor.constructorId) ?? []).map((d) => (
+                  <li key={d.Driver.driverId}>
+                    <Link
+                      href={`/drivers/${d.Driver.driverId}`}
+                      className="inline-block rounded-md bg-white/5 px-2.5 py-1 text-sm hover:bg-white/10"
+                    >
+                      {d.Driver.code ?? d.Driver.familyName} · {d.points}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
