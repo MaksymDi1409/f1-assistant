@@ -1,5 +1,6 @@
 import type {
   ConstructorStanding,
+  Driver,
   DriverStanding,
   Race,
   RaceResult,
@@ -10,12 +11,17 @@ const BASE_URL = "https://api.jolpi.ca/ergast/f1";
 // Дані оновлюються не частіше ніж раз на годину:
 // швидше для користувача і не перевищуємо ліміти API
 const REVALIDATE_SECONDS = 3600;
+const MAX_ATTEMPTS = 3;
 
-type Season = "current" | `${number}`;
-
-async function jolpicaFetch<T>(path: string): Promise<T> {
+async function jolpicaFetch<T>(path: string, attempt = 1): Promise<T> {
   const url = `${BASE_URL}${path}`;
   const res = await fetch(url, { next: { revalidate: REVALIDATE_SECONDS } });
+
+  // 429 = забагато запитів: чекаємо (1 с, потім 2 с) і пробуємо ще раз
+  if (res.status === 429 && attempt < MAX_ATTEMPTS) {
+    await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+    return jolpicaFetch<T>(path, attempt + 1);
+  }
 
   if (!res.ok) {
     throw new Error(`Jolpica API error ${res.status} for ${url}`);
@@ -25,37 +31,23 @@ async function jolpicaFetch<T>(path: string): Promise<T> {
   return json.MRData as T;
 }
 
-export async function getSchedule(season: Season = "current"): Promise<Race[]> {
+// Jolpica повертає загальну кількість записів у полі total.
+// Запит з limit=1 дозволяє порахувати, наприклад, перемоги, не завантажуючи їх усі
+async function getTotal(path: string): Promise<number> {
+  const data = await jolpicaFetch<{ total: string }>(`${path}?limit=1`);
+  return Number(data.total);
+}
+
+// ---------- Календар і гонки ----------
+
+export async function getSchedule(season = "current"): Promise<Race[]> {
   const data = await jolpicaFetch<{ RaceTable: { Races: Race[] } }>(
     `/${season}.json?limit=100`,
   );
   return data.RaceTable.Races;
 }
 
-export async function getDriverStandings(
-  season: Season = "current",
-): Promise<DriverStanding[]> {
-  const data = await jolpicaFetch<{
-    StandingsTable: { StandingsLists: { DriverStandings: DriverStanding[] }[] };
-  }>(`/${season}/driverStandings.json?limit=100`);
-  return data.StandingsTable.StandingsLists[0]?.DriverStandings ?? [];
-}
-
-export async function getConstructorStandings(
-  season: Season = "current",
-): Promise<ConstructorStanding[]> {
-  const data = await jolpicaFetch<{
-    StandingsTable: {
-      StandingsLists: { ConstructorStandings: ConstructorStanding[] }[];
-    };
-  }>(`/${season}/constructorStandings.json?limit=100`);
-  return data.StandingsTable.StandingsLists[0]?.ConstructorStandings ?? [];
-}
-
-export async function getRace(
-  season: string,
-  round: string,
-): Promise<Race | null> {
+export async function getRace(season: string, round: string): Promise<Race | null> {
   const data = await jolpicaFetch<{ RaceTable: { Races: Race[] } }>(
     `/${season}/${round}.json`,
   );
@@ -70,4 +62,59 @@ export async function getRaceResults(
     RaceTable: { Races: { Results: RaceResult[] }[] };
   }>(`/${season}/${round}/results.json?limit=100`);
   return data.RaceTable.Races[0]?.Results ?? [];
+}
+
+// ---------- Таблиці ----------
+
+export async function getDriverStandings(
+  season = "current",
+): Promise<DriverStanding[]> {
+  const data = await jolpicaFetch<{
+    StandingsTable: { StandingsLists: { DriverStandings: DriverStanding[] }[] };
+  }>(`/${season}/driverStandings.json?limit=100`);
+  return data.StandingsTable.StandingsLists[0]?.DriverStandings ?? [];
+}
+
+export async function getConstructorStandings(
+  season = "current",
+): Promise<ConstructorStanding[]> {
+  const data = await jolpicaFetch<{
+    StandingsTable: {
+      StandingsLists: { ConstructorStandings: ConstructorStanding[] }[];
+    };
+  }>(`/${season}/constructorStandings.json?limit=100`);
+  return data.StandingsTable.StandingsLists[0]?.ConstructorStandings ?? [];
+}
+
+// ---------- Пілоти ----------
+
+export async function getDriver(driverId: string): Promise<Driver | null> {
+  const data = await jolpicaFetch<{ DriverTable: { Drivers: Driver[] } }>(
+    `/drivers/${driverId}.json`,
+  );
+  return data.DriverTable.Drivers[0] ?? null;
+}
+
+export async function getDriverSeasonResults(
+  driverId: string,
+  season = "current",
+): Promise<{ race: Race; result: RaceResult }[]> {
+  const data = await jolpicaFetch<{
+    RaceTable: { Races: (Race & { Results: RaceResult[] })[] };
+  }>(`/${season}/drivers/${driverId}/results.json?limit=100`);
+
+  return data.RaceTable.Races.map((race) => ({
+    race,
+    result: race.Results[0],
+  }));
+}
+
+export async function getDriverCareerStats(driverId: string) {
+  const [starts, wins, titles] = await Promise.all([
+    getTotal(`/drivers/${driverId}/results.json`),
+    getTotal(`/drivers/${driverId}/results/1.json`), // фініш на 1 місці
+    getTotal(`/drivers/${driverId}/driverStandings/1.json`), // 1 місце в чемпіонаті
+  ]);
+
+  return { starts, wins, titles };
 }
