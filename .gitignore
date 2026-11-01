@@ -1,0 +1,15 @@
+# Залежності
+node_modules/
+
+# Секрети: ключі API, паролі
+.env
+.env.*
+!.env.example
+
+# Системні файли
+.DS_Store
+Thumbs.db
+
+# Налаштування редактора
+.vscode/*
+!.vscode/extensions.json
