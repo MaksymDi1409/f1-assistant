@@ -9,10 +9,14 @@ export function getProvider(): AIProvider {
     case "gemini": {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
-      return createGeminiProvider(
-        apiKey,
-        process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
-      );
+
+      // "a,b,c" → ["a", "b", "c"]
+      const models = (process.env.GEMINI_MODELS ?? "gemini-2.5-flash")
+        .split(",")
+        .map((m) => m.trim())
+        .filter(Boolean);
+
+      return createGeminiProvider(apiKey, models);
     }
     default:
       throw new Error(`Unknown AI provider: ${name}`);

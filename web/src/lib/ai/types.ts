@@ -17,6 +17,7 @@ export type ToolDefinition = {
 export type ChatEvent =
   | { type: "text"; text: string } // шматок відповіді
   | { type: "tool"; name: string } // ШІ викликає інструмент
+  | { type: "model"; name: string } // яка модель відповідає
   | { type: "error"; message: string };
 
 export type ChatRequest = {
