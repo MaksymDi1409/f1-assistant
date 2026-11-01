@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { getSchedule } from "@/lib/f1/jolpica";
 import { formatDayMonth, toDate } from "@/lib/f1/format";
@@ -24,33 +25,37 @@ export default async function CalendarPage() {
           const isNext = race === nextRace;
 
           return (
-            <li
-              key={race.round}
-              className={`rounded-xl border p-4 ${
-                isNext
-                  ? "border-accent bg-accent/10"
-                  : "border-white/10 bg-surface"
-              } ${isPast ? "opacity-50" : ""}`}
-            >
-              <div className="flex items-center justify-between text-xs text-muted">
-                <span>Етап {race.round}</span>
-                {isNext && <span className="font-semibold text-accent">Наступна</span>}
-                {isPast && <span>Завершено</span>}
-              </div>
+            <li key={race.round}>
+              <Link
+                href={`/calendar/${race.season}/${race.round}`}
+                className={`block h-full rounded-xl border p-4 transition-colors hover:border-accent/60 ${
+                  isNext
+                    ? "border-accent bg-accent/10"
+                    : "border-white/10 bg-surface"
+                } ${isPast ? "opacity-50 hover:opacity-100" : ""}`}
+              >
+                <div className="flex items-center justify-between text-xs text-muted">
+                  <span>Етап {race.round}</span>
+                  {isNext && (
+                    <span className="font-semibold text-accent">Наступна</span>
+                  )}
+                  {isPast && <span>Завершено</span>}
+                </div>
 
-              <h2 className="mt-1 font-semibold">{race.raceName}</h2>
-              <p className="text-sm text-muted">
-                {race.Circuit.Location.locality}, {race.Circuit.Location.country}
-              </p>
+                <h2 className="mt-1 font-semibold">{race.raceName}</h2>
+                <p className="text-sm text-muted">
+                  {race.Circuit.Location.locality}, {race.Circuit.Location.country}
+                </p>
 
-              <div className="mt-3 flex items-center gap-2 text-sm">
-                <span>{formatDayMonth(raceDate)}</span>
-                {race.Sprint && (
-                  <span className="rounded bg-white/10 px-1.5 py-0.5 text-xs">
-                    Спринт
-                  </span>
-                )}
-              </div>
+                <div className="mt-3 flex items-center gap-2 text-sm">
+                  <span>{formatDayMonth(raceDate)}</span>
+                  {race.Sprint && (
+                    <span className="rounded bg-white/10 px-1.5 py-0.5 text-xs">
+                      Спринт
+                    </span>
+                  )}
+                </div>
+              </Link>
             </li>
           );
         })}
