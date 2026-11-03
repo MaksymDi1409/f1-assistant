@@ -13,3 +13,6 @@ Thumbs.db
 # Налаштування редактора
 .vscode/*
 !.vscode/extensions.json
+
+# Файли, завантажені в CMS
+cms/uploads/
