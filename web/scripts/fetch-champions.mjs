@@ -5,7 +5,9 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 const BASE_URL = "https://api.jolpi.ca/ergast/f1";
 const FIRST_SEASON = 1950;
-const LAST_SEASON = new Date().getFullYear() - 1; // поточний сезон ще не завершено
+// Останній сезон можна вказати вручну, якщо чемпіон визначився достроково:
+// npm run data:champions -- 2026
+const LAST_SEASON = Number(process.argv[2]) || new Date().getFullYear() - 1;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
