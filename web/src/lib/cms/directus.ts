@@ -1,0 +1,56 @@
+const DIRECTUS_URL = process.env.DIRECTUS_URL ?? "http://localhost:8055";
+
+// Нова стаття з'являється на сайті не пізніше ніж за хвилину
+const REVALIDATE_SECONDS = 60;
+
+export type Article = {
+  id: number;
+  title: string;
+  slug: string;
+  summary: string | null;
+  content: string | null;
+  cover: string | null; // ID файлу в Directus
+  published_at: string | null;
+  date_created: string;
+};
+
+const LIST_FIELDS = ["id", "title", "slug", "summary", "cover", "published_at", "date_created"];
+
+// Лише опубліковані. Public-доступ у Directus і так це гарантує,
+// але явний фільтр — другий рівень захисту (defense in depth)
+const PUBLISHED = { status: { _eq: "published" } };
+
+async function directusFetch<T>(path: string, params: Record<string, string>): Promise<T> {
+  const url = `${DIRECTUS_URL}${path}?${new URLSearchParams(params)}`;
+  const res = await fetch(url, { next: { revalidate: REVALIDATE_SECONDS } });
+
+  if (!res.ok) {
+    throw new Error(`Directus error ${res.status} for ${path}`);
+  }
+
+  const json = await res.json();
+  return json.data as T;
+}
+
+export function getArticles(): Promise<Article[]> {
+  return directusFetch<Article[]>("/items/articles", {
+    fields: LIST_FIELDS.join(","),
+    filter: JSON.stringify(PUBLISHED),
+    sort: "-published_at,-date_created", // «-» означає «від нових до старих»
+    limit: "50",
+  });
+}
+
+export async function getArticleBySlug(slug: string): Promise<Article | null> {
+  const articles = await directusFetch<Article[]>("/items/articles", {
+    fields: [...LIST_FIELDS, "content"].join(","),
+    filter: JSON.stringify({ _and: [PUBLISHED, { slug: { _eq: slug } }] }),
+    limit: "1",
+  });
+  return articles[0] ?? null;
+}
+
+// Directus сам зменшує картинку і перетворює її на WebP
+export function assetUrl(fileId: string, width: number): string {
+  return `${DIRECTUS_URL}/assets/${fileId}?width=${width}&format=webp&quality=80`;
+}
