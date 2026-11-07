@@ -1,15 +1,13 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import TrackReplay from "@/components/TrackReplay";
+import { getSiteSettings, type SiteSettings } from "@/lib/cms/settings";
 import { buildReplay, getLatestRaceSession } from "@/lib/f1/replay";
 
-// Згодом це налаштовуватиме адмін у CMS
-const REPLAY_LAP = 5;
-
-async function loadReplay() {
+async function loadReplay(lap: number) {
   try {
     const session = await getLatestRaceSession();
-    return session ? await buildReplay(session, REPLAY_LAP) : null;
+    return session ? await buildReplay(session, lap) : null;
   } catch (error) {
     // Очікуваний збій: головна працює далі, просто без повтору
     console.warn("Replay unavailable:", error);
@@ -18,8 +16,8 @@ async function loadReplay() {
 }
 
 // Окремий асинхронний компонент: лише він чекає на OpenF1
-async function HomeReplay() {
-  const replay = await loadReplay();
+async function HomeReplay({ settings }: { settings: SiteSettings }) {
+  const replay = await loadReplay(settings.replay_lap);
 
   if (!replay) {
     return (
@@ -35,7 +33,11 @@ async function HomeReplay() {
       <p className="mb-3 text-sm text-muted">
         {replay.title} · коло {replay.lap}
       </p>
-      <TrackReplay replay={replay} />
+      <TrackReplay
+        replay={replay}
+        initialSpeed={settings.replay_speed}
+        initialShowLabels={settings.replay_show_labels}
+      />
     </>
   );
 }
@@ -48,16 +50,20 @@ function ReplaySkeleton() {
   );
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  const settings = await getSiteSettings();
+
+  // Останнє слово заголовка виділяємо червоним: "F1 Assistant" → "F1 <Assistant>"
+  const words = settings.hero_title.split(" ");
+  const lastWord = words.pop();
+
   return (
     <>
       <section className="py-10 text-center">
         <h1 className="text-5xl font-bold tracking-tight">
-          F1 <span className="text-accent">Assistant</span>
+          {words.join(" ")} <span className="text-accent">{lastWord}</span>
         </h1>
-        <p className="mt-4 text-lg text-muted">
-          Календар, таблиці, пілоти та AI-помічник для фанатів Формули 1
-        </p>
+        <p className="mt-4 text-lg text-muted">{settings.hero_subtitle}</p>
         <div className="mt-6 flex justify-center gap-3">
           <Link
             href="/chat"
@@ -74,12 +80,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-1 text-xl font-semibold">Повтор кола</h2>
-        <Suspense fallback={<ReplaySkeleton />}>
-          <HomeReplay />
-        </Suspense>
-      </section>
+      {settings.replay_enabled && (
+        <section>
+          <h2 className="mb-1 text-xl font-semibold">Повтор кола</h2>
+          <Suspense fallback={<ReplaySkeleton />}>
+            <HomeReplay settings={settings} />
+          </Suspense>
+        </section>
+      )}
     </>
   );
 }

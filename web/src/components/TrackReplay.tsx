@@ -29,12 +29,27 @@ function positionAt(points: ReplayPoint[], t: number): [number, number] | null {
   return [x0 + (x1 - x0) * k, y0 + (y1 - y0) * k];
 }
 
-export default function TrackReplay({ replay }: { replay: Replay }) {
+type Props = {
+  replay: Replay;
+  initialSpeed?: number;
+  initialShowLabels?: boolean;
+};
+
+export default function TrackReplay({
+  replay,
+  initialSpeed = 2,
+  initialShowLabels = true,
+}: Props) {
   const [time, setTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [speed, setSpeed] = useState(2);
-  const [showLabels, setShowLabels] = useState(true);
+  const [speed, setSpeed] = useState(initialSpeed);
+  const [showLabels, setShowLabels] = useState(initialShowLabels);
 
+  // Якщо адмін задав нестандартну швидкість (наприклад ×3), додаємо її до кнопок
+  const speeds = SPEEDS.includes(initialSpeed)
+    ? SPEEDS
+    : [...SPEEDS, initialSpeed].sort((a, b) => a - b);
+  
   // Цикл анімації: на кожному кадрі зсуваємо час на прожиті мілісекунди × швидкість
   useEffect(() => {
     if (!isPlaying) return;
@@ -102,7 +117,7 @@ export default function TrackReplay({ replay }: { replay: Replay }) {
         </button>
 
         <div className="flex gap-1">
-          {SPEEDS.map((s) => (
+          {speeds.map((s) => (
             <button
               key={s}
               onClick={() => setSpeed(s)}

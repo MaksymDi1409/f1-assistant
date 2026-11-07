@@ -1,3 +1,4 @@
+import { getSiteSettings } from "@/lib/cms/settings";
 import { getProvider } from "@/lib/ai";
 import { buildSystemPrompt } from "@/lib/ai/system-prompt";
 import { f1Tools } from "@/lib/ai/tools";
@@ -37,9 +38,11 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid request" }, { status: 400 });
   }
 
+   const settings = await getSiteSettings();
+
   let provider;
   try {
-    provider = getProvider();
+    provider = getProvider({ models: settings.ai_models });
   } catch (error) {
     console.error("AI provider error:", error);
     return Response.json({ error: "AI is not configured" }, { status: 500 });
@@ -60,7 +63,7 @@ export async function POST(request: Request) {
 
       try {
         for await (const event of provider.streamChat({
-          system: buildSystemPrompt(),
+                    system: buildSystemPrompt(new Date(), settings.chat_instructions),
           messages,
           tools: f1Tools,
         })) {

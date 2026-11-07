@@ -5,15 +5,7 @@ import { readChatStream } from "@/lib/chat-stream";
 import ChatMessageView from "./ChatMessageView";
 import type { UIMessage } from "./types";
 
-// Згодом ці питання задаватиме адмін у CMS
-const QUICK_QUESTIONS = [
-  "Хто виграв останню гонку?",
-  "Яка зараз таблиця чемпіонату?",
-  "Коли наступна гонка?",
-  "Скільки титулів у Хемілтона?",
-];
-
-export default function Chat() {
+export default function Chat({ quickQuestions }: { quickQuestions: string[] }) {
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -108,7 +100,7 @@ export default function Chat() {
               Спитай про гонки, пілотів, таблиці чи історію Формули 1
             </p>
             <div className="flex flex-wrap justify-center gap-2">
-              {QUICK_QUESTIONS.map((q) => (
+              {quickQuestions.map((q) => (
                 <button
                   key={q}
                   onClick={() => send(q)}

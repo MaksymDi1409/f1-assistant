@@ -1,4 +1,7 @@
-export function buildSystemPrompt(now: Date = new Date()): string {
+export function buildSystemPrompt(
+  now: Date = new Date(),
+  extraInstructions: string | null = null,
+): string {
   const kyivDateTime = new Intl.DateTimeFormat("uk-UA", {
     dateStyle: "full",
     timeStyle: "short",
@@ -15,5 +18,9 @@ export function buildSystemPrompt(now: Date = new Date()): string {
 - Пиши коротко і по суті: 1–3 абзаци або короткий список.
 - Не вигадуй цифри. Якщо інструмент не дав даних — так і скажи.
 - Коли згадуєш гонку, пілота чи сезон, додавай посилання на сторінку сайту у форматі Markdown, використовуючи поле link з результатів інструментів. Наприклад: [Джордж Расселл](/drivers/russell).
-- На загальні питання (історія, правила, техніка) можеш відповідати зі своїх знань.`;
+- На загальні питання (історія, правила, техніка) можеш відповідати зі своїх знань.${
+    extraInstructions
+      ? `\n\nДодаткові інструкції від адміністратора сайту:\n${extraInstructions}`
+      : ""
+  }`;
 }
