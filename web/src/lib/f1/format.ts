@@ -40,3 +40,14 @@ export function getAge(dateOfBirth: string): number {
 
   return hadBirthdayThisYear ? age : age - 1;
 }
+
+const fullDateFormatter = new Intl.DateTimeFormat("uk-UA", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "Europe/Kyiv",
+});
+
+export function formatDate(iso: string): string {
+  return fullDateFormatter.format(new Date(iso)); // "7 листопада 2026 р."
+}
