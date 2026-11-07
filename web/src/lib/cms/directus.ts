@@ -20,9 +20,14 @@ const LIST_FIELDS = ["id", "title", "slug", "summary", "cover", "published_at", 
 // але явний фільтр — другий рівень захисту (defense in depth)
 const PUBLISHED = { status: { _eq: "published" } };
 
-async function directusFetch<T>(path: string, params: Record<string, string>): Promise<T> {
-  const url = `${DIRECTUS_URL}${path}?${new URLSearchParams(params)}`;
-  const res = await fetch(url, { next: { revalidate: REVALIDATE_SECONDS } });
+export async function directusFetch<T>(
+  path: string,
+  params: Record<string, string> = {},
+  revalidate: number = REVALIDATE_SECONDS,
+): Promise<T> {
+  const query = new URLSearchParams(params).toString();
+  const url = `${DIRECTUS_URL}${path}${query ? `?${query}` : ""}`;
+  const res = await fetch(url, { next: { revalidate } });
 
   if (!res.ok) {
     throw new Error(`Directus error ${res.status} for ${path}`);
