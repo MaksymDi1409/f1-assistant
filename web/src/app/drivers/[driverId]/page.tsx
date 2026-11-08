@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getTitleSeasons } from "@/lib/f1/champions";
 import { notFound } from "next/navigation";
+import FavoriteDriverButton from "@/components/FavoriteDriverButton";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getTitleSeasons } from "@/lib/f1/champions";
+import { getAge } from "@/lib/f1/format";
 import {
   getDriver,
   getDriverCareerStats,
   getDriverSeasonResults,
   getDriverStandings,
 } from "@/lib/f1/jolpica";
-import { getAge } from "@/lib/f1/format";
 import type { Driver } from "@/lib/f1/types";
-import FavoriteDriverButton from "@/components/FavoriteDriverButton";
-import { getCurrentUser } from "@/lib/auth/session";
 
 type Props = PageProps<"/drivers/[driverId]">;
 
@@ -45,7 +45,7 @@ export default async function DriverPage({ params }: Props) {
   const driver = await loadDriver(params);
 
   // Усі запити паралельно
-    const [seasonResults, career, standings, user] = await Promise.all([
+  const [seasonResults, career, standings, user] = await Promise.all([
     getDriverSeasonResults(driver.driverId),
     getDriverCareerStats(driver.driverId).catch(() => null),
     getDriverStandings(),
@@ -81,7 +81,10 @@ export default async function DriverPage({ params }: Props) {
             {[team, driver.nationality, `${getAge(driver.dateOfBirth)} років`]
               .filter(Boolean)
               .join(" · ")}
-            {user && standing && (
+          </p>
+
+          {/* Поза абзацом <p>: блоки й форми всередині <p> заборонені в HTML */}
+          {user && standing && (
             <div className="mt-3">
               <FavoriteDriverButton
                 driverId={driver.driverId}
@@ -89,7 +92,6 @@ export default async function DriverPage({ params }: Props) {
               />
             </div>
           )}
-          </p>
         </div>
       </div>
 
@@ -101,14 +103,15 @@ export default async function DriverPage({ params }: Props) {
         <StatCard label="Подіуми" value={seasonPodiums} />
       </div>
 
-            <h2 className="mb-3 text-xl font-semibold">Кар&apos;єра</h2>
+      <h2 className="mb-3 text-xl font-semibold">Кар&apos;єра</h2>
       <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Старти" value={career?.starts ?? "—"} />
         <StatCard label="Перемоги" value={career?.wins ?? "—"} />
         <StatCard label="Подіуми" value={career?.podiums ?? "—"} />
         <StatCard label="Титули" value={titleSeasons.length} />
       </div>
-            {titleSeasons.length > 0 && (
+
+      {titleSeasons.length > 0 ? (
         <p className="mb-8 text-sm text-muted">
           Чемпіон світу:{" "}
           {titleSeasons.map((season, i) => (
@@ -123,8 +126,9 @@ export default async function DriverPage({ params }: Props) {
             </span>
           ))}
         </p>
+      ) : (
+        <div className="mb-8" />
       )}
-      {titleSeasons.length === 0 && <div className="mb-8" />}
 
       {seasonResults.length > 0 && (
         <>

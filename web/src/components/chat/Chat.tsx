@@ -135,7 +135,7 @@ export default function Chat({ quickQuestions }: { quickQuestions: string[] }) {
           <button
             type="button"
             onClick={() => abortRef.current?.abort()}
-            className="rounded-lg bg-subtle-strong px-4 py-2 text-sm hover:bg-subtle-strong"
+            className="rounded-lg bg-subtle-strong px-4 py-2 text-sm hover:bg-line-strong"
           >
             Стоп
           </button>
