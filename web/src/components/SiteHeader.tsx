@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { UserRole } from "@/lib/auth/session";
+
+type HeaderUser = { firstName: string | null; role: UserRole } | null;
 
 const navItems = [
   { href: "/", label: "Головна" },
@@ -13,7 +16,7 @@ const navItems = [
   { href: "/news", label: "Новини" },
 ];
 
-export default function SiteHeader() {
+export default function SiteHeader({ user }: { user: HeaderUser }) {
   const pathname = usePathname();
 
   const isActive = (href: string) =>
@@ -26,21 +29,30 @@ export default function SiteHeader() {
           F1 <span className="text-accent">Assistant</span>
         </Link>
 
-        <nav className="flex gap-1 overflow-x-auto">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors ${
-                isActive(item.href)
-                  ? "bg-accent text-white"
-                  : "text-muted hover:bg-white/5 hover:text-foreground"
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+                <div className="flex min-w-0 items-center gap-2">
+          <nav className="flex gap-1 overflow-x-auto">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors ${
+                  isActive(item.href)
+                    ? "bg-accent text-white"
+                    : "text-muted hover:bg-white/5 hover:text-foreground"
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+
+          <Link
+            href={user ? "/account" : "/login"}
+            className="shrink-0 whitespace-nowrap rounded-md border border-white/15 px-3 py-1.5 text-sm hover:bg-white/5"
+          >
+            {user ? (user.firstName ?? "Кабінет") : "Увійти"}
+          </Link>
+        </div>
       </div>
     </header>
   );

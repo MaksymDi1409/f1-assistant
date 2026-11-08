@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import SiteHeader from "@/components/SiteHeader";
 import "./globals.css";
+import { getCurrentUser } from "@/lib/auth/session";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,14 +22,18 @@ export const metadata: Metadata = {
   description: "Помічник фаната Формули 1: календар, таблиці, пілоти та AI-чат",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const user = await getCurrentUser();
+
   return (
     <html
       lang="uk"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col font-sans">
-        <SiteHeader />
+        <SiteHeader
+          user={user ? { firstName: user.firstName, role: user.role } : null}
+        />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
           {children}
         </main>
