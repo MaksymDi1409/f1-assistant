@@ -2,8 +2,15 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { directusLogin, directusLogout, directusRegister } from "./directus-auth";
+import {
+  directusLogin,
+  directusLogout,
+  directusRegister,
+  directusUpdateMe,
+} from "./directus-auth";
 import { ACCESS_COOKIE, REFRESH_COOKIE, setSessionCookies } from "./session";
+import { revalidatePath } from "next/cache";
+import { getConstructorStandings, getDriverStandings } from "@/lib/f1/jolpica";
 
 export type AuthFormState = { error?: string } | undefined;
 
@@ -86,4 +93,58 @@ export async function logoutAction(): Promise<void> {
   store.delete(ACCESS_COOKIE);
   store.delete(REFRESH_COOKIE);
   redirect("/");
+}
+
+export type FavoritesFormState = { error?: string; success?: boolean } | undefined;
+
+const ID_PATTERN = /^[a-z0-9_]+$/;
+
+// undefined — поля немає у формі (не змінюємо), null — «не вибрано»
+async function parseFavorite(
+  value: FormDataEntryValue | null,
+  getValidIds: () => Promise<string[]>,
+): Promise<string | null | undefined> {
+  if (value === null) return undefined;
+
+  const id = String(value);
+  if (id === "") return null;
+
+  // Лише справжні пілоти/команди поточного сезону
+  if (!ID_PATTERN.test(id) || !(await getValidIds()).includes(id)) {
+    throw new Error(`Invalid favorite: ${id}`);
+  }
+  return id;
+}
+
+export async function updateFavoritesAction(
+  _prevState: FavoritesFormState,
+  formData: FormData,
+): Promise<FavoritesFormState> {
+  const accessToken = (await cookies()).get(ACCESS_COOKIE)?.value;
+  if (!accessToken) return { error: "Сесія закінчилась, увійди знову" };
+
+  const patch: Record<string, string | null> = {};
+
+  try {
+    const driver = await parseFavorite(formData.get("favoriteDriver"), async () =>
+      (await getDriverStandings()).map((s) => s.Driver.driverId),
+    );
+    const team = await parseFavorite(formData.get("favoriteTeam"), async () =>
+      (await getConstructorStandings()).map((s) => s.Constructor.constructorId),
+    );
+
+    if (driver !== undefined) patch.favorite_driver = driver;
+    if (team !== undefined) patch.favorite_team = team;
+  } catch {
+    return { error: "Невідомий пілот або команда" };
+  }
+
+  if (Object.keys(patch).length === 0) return { error: "Нічого не змінено" };
+
+  const saved = await directusUpdateMe(accessToken, patch).catch(() => false);
+  if (!saved) return { error: "Не вдалося зберегти, спробуй ще раз" };
+
+  // Перемалювати всі сторінки: підсвічування улюблених змінилося
+  revalidatePath("/", "layout");
+  return { success: true };
 }

@@ -11,6 +11,8 @@ export type DirectusMe = {
   first_name: string | null;
   email: string;
   role: { name: string } | null;
+  favorite_driver: string | null;
+  favorite_team: string | null;
 };
 
 function post(path: string, body: unknown): Promise<Response> {
@@ -51,7 +53,7 @@ export async function directusLogout(refreshToken: string): Promise<void> {
 
 export async function directusMe(accessToken: string): Promise<DirectusMe | null> {
   const res = await fetch(
-    `${DIRECTUS_URL}/users/me?fields=id,first_name,email,role.name`,
+        `${DIRECTUS_URL}/users/me?fields=id,first_name,email,role.name,favorite_driver,favorite_team`,
     {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store", // дані користувача в спільний кеш класти не можна
@@ -59,4 +61,22 @@ export async function directusMe(accessToken: string): Promise<DirectusMe | null
   );
   if (!res.ok) return null;
   return (await res.json()).data as DirectusMe;
+}
+
+// Змінити власний профіль. Які саме поля можна змінювати, вирішує Directus
+// (права політики Site User), а не наш код
+export async function directusUpdateMe(
+  accessToken: string,
+  data: Record<string, unknown>,
+): Promise<boolean> {
+  const res = await fetch(`${DIRECTUS_URL}/users/me`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(data),
+    cache: "no-store",
+  });
+  return res.ok;
 }

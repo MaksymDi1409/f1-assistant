@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import { logoutAction } from "@/lib/auth/actions";
 import { getCurrentUser, type UserRole } from "@/lib/auth/session";
+import FavoritesForm from "@/components/account/FavoritesForm";
+import { getConstructorStandings, getDriverStandings } from "@/lib/f1/jolpica";
 
 export const metadata: Metadata = { title: "Кабінет" };
 
@@ -15,6 +17,10 @@ const ROLE_LABELS: Record<UserRole, string> = {
 export default async function AccountPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/account");
+    const [drivers, teams] = await Promise.all([
+    getDriverStandings(),
+    getConstructorStandings(),
+  ]);
 
   return (
     <div className="max-w-xl">
@@ -31,9 +37,20 @@ export default async function AccountPage() {
         </div>
       </dl>
 
-      <p className="mt-6 text-sm text-muted">
-        Скоро тут з&apos;являться улюблений пілот, команда і вибір теми.
-      </p>
+            <div className="mt-6">
+        <FavoritesForm
+          drivers={drivers.map((s) => ({
+            id: s.Driver.driverId,
+            label: `${s.Driver.givenName} ${s.Driver.familyName} (${s.Constructors.at(-1)?.name ?? "—"})`,
+          }))}
+          teams={teams.map((s) => ({
+            id: s.Constructor.constructorId,
+            label: s.Constructor.name,
+          }))}
+          favoriteDriver={user.favoriteDriver}
+          favoriteTeam={user.favoriteTeam}
+        />
+      </div>
 
       <form action={logoutAction} className="mt-6">
         <button

@@ -13,6 +13,8 @@ export type CurrentUser = {
   firstName: string | null;
   email: string;
   role: UserRole;
+  favoriteDriver: string | null;
+  favoriteTeam: string | null;
 };
 
 type CookieOptions = {
@@ -58,11 +60,13 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     const me = await directusMe(accessToken);
     if (!me) return null;
 
-    return {
+        return {
       id: me.id,
       firstName: me.first_name,
       email: me.email,
       role: toRole(me.role?.name),
+      favoriteDriver: me.favorite_driver,
+      favoriteTeam: me.favorite_team,
     };
   } catch {
     return null; // Directus недоступний — працюємо як з гостем
