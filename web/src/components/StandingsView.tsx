@@ -47,7 +47,7 @@ export default async function StandingsView({
               return (
                 <tr
                   key={s.Driver.driverId}
-                  className={`border-t border-white/10 ${
+                  className={`border-t border-line ${
                     s.Driver.driverId === highlightDriverId ? "bg-accent/15" : ""
                   }`}
                 >
@@ -107,7 +107,7 @@ export default async function StandingsView({
                 return (
                   <tr
                     key={s.Constructor.constructorId}
-                    className={`border-t border-white/10 ${isFavorite ? "bg-white/5" : ""}`}
+                    className={`border-t border-line ${isFavorite ? "bg-subtle" : ""}`}
                   >
                     <td className="py-2 pl-1 text-muted">{s.positionText}</td>
                     <td>

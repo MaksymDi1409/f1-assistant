@@ -26,7 +26,7 @@ export default async function AccountPage() {
     <div className="max-w-xl">
       <PageHeader title={`Привіт, ${user.firstName ?? "друже"}!`} />
 
-      <dl className="space-y-3 rounded-xl border border-white/10 bg-surface p-4 text-sm">
+      <dl className="space-y-3 rounded-xl border border-line bg-surface p-4 text-sm">
         <div className="flex justify-between gap-4">
           <dt className="text-muted">Email</dt>
           <dd>{user.email}</dd>
@@ -55,7 +55,7 @@ export default async function AccountPage() {
       <form action={logoutAction} className="mt-6">
         <button
           type="submit"
-          className="rounded-lg border border-white/15 px-4 py-2 text-sm hover:bg-white/5"
+          className="rounded-lg border border-line-strong px-4 py-2 text-sm hover:bg-subtle"
         >
           Вийти
         </button>

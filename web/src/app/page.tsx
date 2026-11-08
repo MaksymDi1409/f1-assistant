@@ -21,7 +21,7 @@ async function HomeReplay({ settings }: { settings: SiteSettings }) {
 
   if (!replay) {
     return (
-      <p className="rounded-xl border border-white/10 bg-surface p-6 text-sm text-muted">
+      <p className="rounded-xl border border-line bg-surface p-6 text-sm text-muted">
         Повтор зараз недоступний: дані OpenF1 тимчасово не завантажились. Спробуй
         пізніше.
       </p>
@@ -44,7 +44,7 @@ async function HomeReplay({ settings }: { settings: SiteSettings }) {
 
 function ReplaySkeleton() {
   return (
-    <div className="flex h-80 animate-pulse items-center justify-center rounded-xl border border-white/10 bg-surface text-sm text-muted">
+    <div className="flex h-80 animate-pulse items-center justify-center rounded-xl border border-line bg-surface text-sm text-muted">
       Завантажую повтор кола…
     </div>
   );
@@ -67,13 +67,13 @@ export default async function HomePage() {
         <div className="mt-6 flex justify-center gap-3">
           <Link
             href="/chat"
-            className="rounded-lg bg-accent px-5 py-2.5 font-medium text-white hover:bg-accent/90"
+            className="rounded-lg bg-accent px-5 py-2.5 font-medium text-on-accent hover:bg-accent/90"
           >
             Запитати AI
           </Link>
           <Link
             href="/calendar"
-            className="rounded-lg border border-white/15 px-5 py-2.5 font-medium hover:bg-white/5"
+            className="rounded-lg border border-line-strong px-5 py-2.5 font-medium hover:bg-subtle"
           >
             Календар
           </Link>

@@ -78,7 +78,7 @@ export default async function RacePage({ params }: Props) {
 
       <div className="grid gap-8 lg:grid-cols-[1fr_2fr]">
         <aside className="space-y-6">
-          <section className="rounded-xl border border-white/10 bg-surface p-4">
+          <section className="rounded-xl border border-line bg-surface p-4">
             <h2 className="mb-3 font-semibold">Розклад</h2>
             <ul className="space-y-2 text-sm">
               {sessions.map(({ name, session }) => (
@@ -93,7 +93,7 @@ export default async function RacePage({ params }: Props) {
             <p className="mt-3 text-xs text-muted">Час київський</p>
           </section>
 
-          <section className="rounded-xl border border-white/10 bg-surface p-4">
+          <section className="rounded-xl border border-line bg-surface p-4">
             <h2 className="mb-3 font-semibold">Траса</h2>
             <p>{race.Circuit.circuitName}</p>
             <p className="text-sm text-muted">
@@ -133,7 +133,7 @@ export default async function RacePage({ params }: Props) {
                 </thead>
                 <tbody>
                   {results.map((r) => (
-                    <tr key={r.Driver.driverId} className="border-t border-white/10">
+                    <tr key={r.Driver.driverId} className="border-t border-line">
                       <td className="py-2 text-muted">{r.positionText}</td>
                       <td>
                         <Link

@@ -21,7 +21,7 @@ export default function ChatMessageView({ message, isStreaming }: Props) {
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-accent px-4 py-2 text-sm text-white">
+        <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-accent px-4 py-2 text-sm text-on-accent">
           {message.content}
         </div>
       </div>
@@ -39,7 +39,7 @@ export default function ChatMessageView({ message, isStreaming }: Props) {
       )}
 
       {message.content && (
-        <div className="chat-markdown rounded-2xl rounded-bl-sm bg-white/5 px-4 py-3 text-sm leading-relaxed">
+        <div className="chat-markdown rounded-2xl rounded-bl-sm bg-subtle px-4 py-3 text-sm leading-relaxed">
           <ReactMarkdown
             components={{
               a: ({ href = "", children }) =>

@@ -20,8 +20,8 @@ export default function FavoriteDriverButton({ driverId, isFavorite }: Props) {
         disabled={isPending}
         className={`rounded-lg px-3 py-1.5 text-sm transition-colors disabled:opacity-50 ${
           isFavorite
-            ? "bg-accent text-white"
-            : "border border-white/15 hover:bg-white/5"
+            ? "bg-accent text-on-accent"
+            : "border border-line-strong hover:bg-subtle"
         }`}
       >
         {isFavorite ? "★ Улюблений пілот" : "☆ Зробити улюбленим"}

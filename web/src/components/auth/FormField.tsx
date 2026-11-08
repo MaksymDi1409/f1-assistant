@@ -14,7 +14,7 @@ export default function FormField({ label, name, type = "text", autoComplete }: 
         type={type}
         autoComplete={autoComplete}
         required
-        className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-accent/50"
+        className="w-full rounded-lg border border-line bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-accent/50"
       />
     </label>
   );

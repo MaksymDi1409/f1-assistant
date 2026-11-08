@@ -29,7 +29,7 @@ function SelectField({
       <select
         name={name}
         defaultValue={defaultValue}
-        className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-accent/50"
+        className="w-full rounded-lg border border-line bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-accent/50"
       >
         <option value="">— не вибрано —</option>
         {options.map((o) => (
@@ -50,7 +50,7 @@ export default function FavoritesForm({ drivers, teams, favoriteDriver, favorite
       // Після збереження форма перестворюється з новими значеннями
       key={`${favoriteDriver}-${favoriteTeam}`}
       action={formAction}
-      className="space-y-4 rounded-xl border border-white/10 bg-surface p-4"
+      className="space-y-4 rounded-xl border border-line bg-surface p-4"
     >
       <h2 className="font-semibold">Улюблені</h2>
 
@@ -73,7 +73,7 @@ export default function FavoritesForm({ drivers, teams, favoriteDriver, favorite
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent disabled:opacity-50"
       >
         {isPending ? "Збереження…" : "Зберегти"}
       </button>

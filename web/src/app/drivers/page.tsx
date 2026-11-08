@@ -25,7 +25,7 @@ export default async function DriversPage() {
                 className={`block rounded-xl border bg-surface p-4 transition-colors hover:border-accent/60 ${
                   s.Driver.driverId === user?.favoriteDriver
                     ? "border-accent"
-                    : "border-white/10"
+                    : "border-line"
                 }`}
               >
                 <div className="flex items-start justify-between">

@@ -1,11 +1,35 @@
 @import "tailwindcss";
 
+/* Темна тема (за замовчуванням, а також основа командної) */
 :root {
+  color-scheme: dark;
+
   --background: #0b0b0f;
   --surface: #15151c;
   --foreground: #f2f2f5;
   --muted: #9a9aa8;
   --accent: #e10600;
+  --on-accent: #ffffff; /* колір тексту на акцентному фоні */
+
+  --line: rgb(255 255 255 / 0.1);
+  --line-strong: rgb(255 255 255 / 0.15);
+  --subtle: rgb(255 255 255 / 0.05);
+  --subtle-strong: rgb(255 255 255 / 0.1);
+}
+
+/* Світла тема */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --background: #f4f4f6;
+  --surface: #ffffff;
+  --foreground: #15151c;
+  --muted: #5c5c6b;
+
+  --line: rgb(0 0 0 / 0.1);
+  --line-strong: rgb(0 0 0 / 0.16);
+  --subtle: rgb(0 0 0 / 0.04);
+  --subtle-strong: rgb(0 0 0 / 0.08);
 }
 
 @theme inline {
@@ -14,6 +38,11 @@
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-subtle: var(--subtle);
+  --color-subtle-strong: var(--subtle-strong);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

@@ -92,7 +92,7 @@ export default function Chat({ quickQuestions }: { quickQuestions: string[] }) {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-14rem)] min-h-[420px] flex-col rounded-xl border border-white/10 bg-surface">
+    <div className="flex h-[calc(100dvh-14rem)] min-h-[420px] flex-col rounded-xl border border-line bg-surface">
       <div className="flex-1 space-y-4 overflow-y-auto p-4">
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
@@ -104,7 +104,7 @@ export default function Chat({ quickQuestions }: { quickQuestions: string[] }) {
                 <button
                   key={q}
                   onClick={() => send(q)}
-                  className="rounded-full border border-white/10 px-3 py-1.5 text-sm text-muted transition-colors hover:border-accent/60 hover:text-foreground"
+                  className="rounded-full border border-line px-3 py-1.5 text-sm text-muted transition-colors hover:border-accent/60 hover:text-foreground"
                 >
                   {q}
                 </button>
@@ -123,7 +123,7 @@ export default function Chat({ quickQuestions }: { quickQuestions: string[] }) {
         <div ref={bottomRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2 border-t border-white/10 p-3">
+      <form onSubmit={handleSubmit} className="flex gap-2 border-t border-line p-3">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -135,7 +135,7 @@ export default function Chat({ quickQuestions }: { quickQuestions: string[] }) {
           <button
             type="button"
             onClick={() => abortRef.current?.abort()}
-            className="rounded-lg bg-white/10 px-4 py-2 text-sm hover:bg-white/15"
+            className="rounded-lg bg-subtle-strong px-4 py-2 text-sm hover:bg-subtle-strong"
           >
             Стоп
           </button>
@@ -143,7 +143,7 @@ export default function Chat({ quickQuestions }: { quickQuestions: string[] }) {
           <button
             type="submit"
             disabled={!input.trim()}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent disabled:opacity-40"
           >
             Надіслати
           </button>

@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-surface p-4">
+    <div className="rounded-xl border border-line bg-surface p-4">
       <p className="text-xs text-muted">{label}</p>
       <p className="mt-1 text-2xl font-bold tabular-nums">{value}</p>
     </div>
@@ -116,7 +116,7 @@ export default async function DriverPage({ params }: Props) {
               {i > 0 && ", "}
               <Link
                 href={`/standings/${season}?driver=${driver.driverId}`}
-                className="text-foreground underline decoration-white/20 underline-offset-4 hover:text-accent hover:decoration-accent"
+                className="text-foreground underline decoration-line-strong underline-offset-4 hover:text-accent hover:decoration-accent"
               >
                 {season}
               </Link>
@@ -141,7 +141,7 @@ export default async function DriverPage({ params }: Props) {
             </thead>
             <tbody>
               {seasonResults.map(({ race, result }) => (
-                <tr key={race.round} className="border-t border-white/10">
+                <tr key={race.round} className="border-t border-line">
                   <td className="py-2 text-muted">{race.round}</td>
                   <td>
                     <Link

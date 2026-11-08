@@ -31,7 +31,7 @@ export default async function CalendarPage() {
                 className={`block h-full rounded-xl border p-4 transition-colors hover:border-accent/60 ${
                   isNext
                     ? "border-accent bg-accent/10"
-                    : "border-white/10 bg-surface"
+                    : "border-line bg-surface"
                 } ${isPast ? "opacity-50 hover:opacity-100" : ""}`}
               >
                 <div className="flex items-center justify-between text-xs text-muted">
@@ -50,7 +50,7 @@ export default async function CalendarPage() {
                 <div className="mt-3 flex items-center gap-2 text-sm">
                   <span>{formatDayMonth(raceDate)}</span>
                   {race.Sprint && (
-                    <span className="rounded bg-white/10 px-1.5 py-0.5 text-xs">
+                    <span className="rounded bg-subtle-strong px-1.5 py-0.5 text-xs">
                       Спринт
                     </span>
                   )}

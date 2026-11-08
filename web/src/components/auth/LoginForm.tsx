@@ -19,7 +19,7 @@ export default function LoginForm({ next }: { next: string }) {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full rounded-lg bg-accent px-4 py-2.5 font-medium text-white disabled:opacity-50"
+        className="w-full rounded-lg bg-accent px-4 py-2.5 font-medium text-on-accent disabled:opacity-50"
       >
         {isPending ? "Вхід…" : "Увійти"}
       </button>

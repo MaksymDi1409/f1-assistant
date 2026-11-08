@@ -39,7 +39,7 @@ export default async function TeamsPage() {
                             className={`rounded-xl border bg-surface p-4 ${
                 c.Constructor.constructorId === user?.favoriteTeam
                   ? "border-accent"
-                  : "border-white/10"
+                  : "border-line"
               }`}
             >
               <div className="flex items-start justify-between">
@@ -64,7 +64,7 @@ export default async function TeamsPage() {
                   <li key={d.Driver.driverId}>
                     <Link
                       href={`/drivers/${d.Driver.driverId}`}
-                      className="inline-block rounded-md bg-white/5 px-2.5 py-1 text-sm hover:bg-white/10"
+                      className="inline-block rounded-md bg-subtle px-2.5 py-1 text-sm hover:bg-subtle-strong"
                     >
                       {d.Driver.code ?? d.Driver.familyName} · {d.points}
                     </Link>

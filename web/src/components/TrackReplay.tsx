@@ -69,7 +69,7 @@ export default function TrackReplay({
   }, [isPlaying, speed, replay.durationMs]);
 
   return (
-    <div className="rounded-xl border border-white/10 bg-surface p-4">
+    <div className="rounded-xl border border-line bg-surface p-4">
       <svg
         viewBox={`0 0 ${replay.width} ${replay.height}`}
         className="mx-auto max-h-[60vh] w-full"
@@ -79,7 +79,7 @@ export default function TrackReplay({
         <polyline
           points={replay.track.map(([x, y]) => `${x},${y}`).join(" ")}
           fill="none"
-          stroke="rgba(255,255,255,0.12)"
+          className="stroke-line-strong"
           strokeWidth={16}
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -91,14 +91,14 @@ export default function TrackReplay({
 
           return (
             <g key={d.number} transform={`translate(${pos[0]} ${pos[1]})`}>
-              <circle r={10} fill={d.color} stroke="#0b0b0f" strokeWidth={2} />
+              <circle r={10} fill={d.color} className="stroke-background" strokeWidth={2} />
               {showLabels && (
                 <text
                   y={-16}
                   textAnchor="middle"
                   fontSize={16}
                   fontWeight={600}
-                  fill="#f2f2f5"
+                  className="fill-foreground"
                 >
                   {d.acronym}
                 </text>
@@ -111,7 +111,7 @@ export default function TrackReplay({
       <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
         <button
           onClick={() => setIsPlaying((p) => !p)}
-          className="w-24 rounded-lg bg-accent px-3 py-1.5 font-medium text-white"
+          className="w-24 rounded-lg bg-accent px-3 py-1.5 font-medium text-on-accent"
         >
           {isPlaying ? "Пауза" : "Старт"}
         </button>
@@ -122,7 +122,7 @@ export default function TrackReplay({
               key={s}
               onClick={() => setSpeed(s)}
               className={`rounded-md px-2.5 py-1.5 ${
-                s === speed ? "bg-white/15 text-foreground" : "text-muted hover:bg-white/5"
+                s === speed ? "bg-subtle-strong text-foreground" : "text-muted hover:bg-subtle"
               }`}
             >
               ×{s}

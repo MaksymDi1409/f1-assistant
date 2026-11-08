@@ -23,7 +23,7 @@ export default function SiteHeader({ user }: { user: HeaderUser }) {
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-background/80 backdrop-blur">
+    <header className="sticky top-0 z-50 border-b border-line bg-background/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3">
         <Link href="/" className="shrink-0 text-lg font-bold tracking-tight">
           F1 <span className="text-accent">Assistant</span>
@@ -37,8 +37,8 @@ export default function SiteHeader({ user }: { user: HeaderUser }) {
                 href={item.href}
                 className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors ${
                   isActive(item.href)
-                    ? "bg-accent text-white"
-                    : "text-muted hover:bg-white/5 hover:text-foreground"
+                    ? "bg-accent text-on-accent"
+                    : "text-muted hover:bg-subtle hover:text-foreground"
                 }`}
               >
                 {item.label}
@@ -48,7 +48,7 @@ export default function SiteHeader({ user }: { user: HeaderUser }) {
 
           <Link
             href={user ? "/account" : "/login"}
-            className="shrink-0 whitespace-nowrap rounded-md border border-white/15 px-3 py-1.5 text-sm hover:bg-white/5"
+            className="shrink-0 whitespace-nowrap rounded-md border border-line-strong px-3 py-1.5 text-sm hover:bg-subtle"
           >
             {user ? (user.firstName ?? "Кабінет") : "Увійти"}
           </Link>

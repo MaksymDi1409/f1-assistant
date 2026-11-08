@@ -33,7 +33,7 @@ export default async function NewsPage() {
             <li key={a.id}>
               <Link
                 href={`/news/${a.slug}`}
-                className="group block h-full overflow-hidden rounded-xl border border-white/10 bg-surface transition-colors hover:border-accent/60"
+                className="group block h-full overflow-hidden rounded-xl border border-line bg-surface transition-colors hover:border-accent/60"
               >
                 {a.cover ? (
                   // Картинку вже оптимізує Directus, тож звичайного <img> достатньо
@@ -45,7 +45,7 @@ export default async function NewsPage() {
                     className="aspect-video w-full object-cover"
                   />
                 ) : (
-                  <div className="aspect-video w-full bg-white/5" />
+                  <div className="aspect-video w-full bg-subtle" />
                 )}
 
                 <div className="p-4">
