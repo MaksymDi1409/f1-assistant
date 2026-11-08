@@ -7,11 +7,15 @@ import {
 type StandingsViewProps = {
   season: string; // "current" або рік
   highlightDriverId?: string;
+  favoriteDriverId?: string | null;
+  favoriteTeamId?: string | null;
 };
 
 export default async function StandingsView({
   season,
   highlightDriverId,
+  favoriteDriverId,
+  favoriteTeamId,
 }: StandingsViewProps) {
   // Два запити паралельно, а не один за одним
   const [drivers, constructors] = await Promise.all([
@@ -37,30 +41,45 @@ export default async function StandingsView({
             </tr>
           </thead>
           <tbody>
-            {drivers.map((s) => (
-              <tr
-                key={s.Driver.driverId}
-                className={`border-t border-white/10 ${
-                  s.Driver.driverId === highlightDriverId ? "bg-accent/15" : ""
-                }`}
-              >
-                <td className="py-2 pl-1 text-muted">{s.positionText}</td>
-                <td>
-                  <Link
-                    href={`/drivers/${s.Driver.driverId}`}
-                    className="hover:text-accent"
+            {drivers.map((s) => {
+              const teamId = s.Constructors.at(-1)?.constructorId;
+
+              return (
+                <tr
+                  key={s.Driver.driverId}
+                  className={`border-t border-white/10 ${
+                    s.Driver.driverId === highlightDriverId ? "bg-accent/15" : ""
+                  }`}
+                >
+                  <td className="py-2 pl-1 text-muted">{s.positionText}</td>
+                  <td>
+                    <Link
+                      href={`/drivers/${s.Driver.driverId}`}
+                      className="hover:text-accent"
+                    >
+                      {s.Driver.givenName} {s.Driver.familyName}
+                    </Link>
+                    {s.Driver.driverId === favoriteDriverId && (
+                      <span className="ml-1.5 text-accent" title="Улюблений пілот">
+                        ★
+                      </span>
+                    )}
+                  </td>
+                  <td
+                    className={`hidden sm:table-cell ${
+                      teamId && teamId === favoriteTeamId
+                        ? "font-medium text-foreground"
+                        : "text-muted"
+                    }`}
                   >
-                    {s.Driver.givenName} {s.Driver.familyName}
-                  </Link>
-                </td>
-                <td className="hidden text-muted sm:table-cell">
-                  {s.Constructors.at(-1)?.name}
-                </td>
-                <td className="pr-1 text-right font-semibold tabular-nums">
-                  {s.points}
-                </td>
-              </tr>
-            ))}
+                    {s.Constructors.at(-1)?.name}
+                  </td>
+                  <td className="pr-1 text-right font-semibold tabular-nums">
+                    {s.points}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </section>
@@ -82,19 +101,30 @@ export default async function StandingsView({
               </tr>
             </thead>
             <tbody>
-              {constructors.map((s) => (
-                <tr
-                  key={s.Constructor.constructorId}
-                  className="border-t border-white/10"
-                >
-                  <td className="py-2 text-muted">{s.positionText}</td>
-                  <td>{s.Constructor.name}</td>
-                  <td className="text-right tabular-nums text-muted">{s.wins}</td>
-                  <td className="text-right font-semibold tabular-nums">
-                    {s.points}
-                  </td>
-                </tr>
-              ))}
+              {constructors.map((s) => {
+                const isFavorite = s.Constructor.constructorId === favoriteTeamId;
+
+                return (
+                  <tr
+                    key={s.Constructor.constructorId}
+                    className={`border-t border-white/10 ${isFavorite ? "bg-white/5" : ""}`}
+                  >
+                    <td className="py-2 pl-1 text-muted">{s.positionText}</td>
+                    <td>
+                      {s.Constructor.name}
+                      {isFavorite && (
+                        <span className="ml-1.5 text-accent" title="Улюблена команда">
+                          ★
+                        </span>
+                      )}
+                    </td>
+                    <td className="text-right tabular-nums text-muted">{s.wins}</td>
+                    <td className="pr-1 text-right font-semibold tabular-nums">
+                      {s.points}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

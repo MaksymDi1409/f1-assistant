@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { getDriverStandings } from "@/lib/f1/jolpica";
+import { getCurrentUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Пілоти" };
 
 export default async function DriversPage() {
   // Беремо пілотів із таблиці: там одразу є команда, позиція й очки
-  const standings = await getDriverStandings();
+    const [standings, user] = await Promise.all([getDriverStandings(), getCurrentUser()]);
 
   return (
     <>
@@ -21,7 +22,11 @@ export default async function DriversPage() {
             <li key={s.Driver.driverId}>
               <Link
                 href={`/drivers/${s.Driver.driverId}`}
-                className="block rounded-xl border border-white/10 bg-surface p-4 transition-colors hover:border-accent/60"
+                className={`block rounded-xl border bg-surface p-4 transition-colors hover:border-accent/60 ${
+                  s.Driver.driverId === user?.favoriteDriver
+                    ? "border-accent"
+                    : "border-white/10"
+                }`}
               >
                 <div className="flex items-start justify-between">
                   <span className="text-3xl font-bold tabular-nums text-muted">
@@ -31,7 +36,12 @@ export default async function DriversPage() {
                     P{s.positionText} · {s.points} оч.
                   </span>
                 </div>
-                <p className="mt-3 text-sm text-muted">{s.Driver.givenName}</p>
+                <p className="mt-3 text-sm text-muted">
+                  {s.Driver.givenName}
+                  {s.Driver.driverId === user?.favoriteDriver && (
+                    <span className="ml-1.5 text-accent">★ Улюблений</span>
+                  )}
+                </p>
                 <p className="text-xl font-bold">{s.Driver.familyName}</p>
                 <p className="mt-1 text-sm text-muted">
                   {s.Constructors.at(-1)?.name}

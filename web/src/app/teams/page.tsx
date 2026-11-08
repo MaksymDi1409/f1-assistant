@@ -6,13 +6,15 @@ import {
   getDriverStandings,
 } from "@/lib/f1/jolpica";
 import type { DriverStanding } from "@/lib/f1/types";
+import { getCurrentUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Команди" };
 
 export default async function TeamsPage() {
-  const [constructors, drivers] = await Promise.all([
+  const [constructors, drivers, user] = await Promise.all([
     getConstructorStandings(),
     getDriverStandings(),
+    getCurrentUser(),
   ]);
 
   // Групуємо пілотів за їхньою поточною командою
@@ -34,12 +36,19 @@ export default async function TeamsPage() {
           {constructors.map((c) => (
             <li
               key={c.Constructor.constructorId}
-              className="rounded-xl border border-white/10 bg-surface p-4"
+                            className={`rounded-xl border bg-surface p-4 ${
+                c.Constructor.constructorId === user?.favoriteTeam
+                  ? "border-accent"
+                  : "border-white/10"
+              }`}
             >
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs text-muted">P{c.positionText}</p>
                   <h2 className="text-xl font-bold">{c.Constructor.name}</h2>
+                                    {c.Constructor.constructorId === user?.favoriteTeam && (
+                    <p className="text-xs text-accent">★ Улюблена команда</p>
+                  )}
                   <p className="text-sm text-muted">{c.Constructor.nationality}</p>
                 </div>
                 <div className="text-right">

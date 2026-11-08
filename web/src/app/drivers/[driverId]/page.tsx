@@ -10,6 +10,8 @@ import {
 } from "@/lib/f1/jolpica";
 import { getAge } from "@/lib/f1/format";
 import type { Driver } from "@/lib/f1/types";
+import FavoriteDriverButton from "@/components/FavoriteDriverButton";
+import { getCurrentUser } from "@/lib/auth/session";
 
 type Props = PageProps<"/drivers/[driverId]">;
 
@@ -43,10 +45,11 @@ export default async function DriverPage({ params }: Props) {
   const driver = await loadDriver(params);
 
   // Усі запити паралельно
-  const [seasonResults, career, standings] = await Promise.all([
+    const [seasonResults, career, standings, user] = await Promise.all([
     getDriverSeasonResults(driver.driverId),
     getDriverCareerStats(driver.driverId).catch(() => null),
     getDriverStandings(),
+    getCurrentUser(),
   ]);
 
   // Згодом тут буде злиття з CMS: біографія, фото, виправлення
@@ -78,6 +81,14 @@ export default async function DriverPage({ params }: Props) {
             {[team, driver.nationality, `${getAge(driver.dateOfBirth)} років`]
               .filter(Boolean)
               .join(" · ")}
+            {user && standing && (
+            <div className="mt-3">
+              <FavoriteDriverButton
+                driverId={driver.driverId}
+                isFavorite={user.favoriteDriver === driver.driverId}
+              />
+            </div>
+          )}
           </p>
         </div>
       </div>
