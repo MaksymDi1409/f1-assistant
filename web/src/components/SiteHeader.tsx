@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { UserRole } from "@/lib/auth/session";
+import ThemeSwitcher from "./ThemeSwitcher";
+import type { Theme } from "@/lib/theme";
 
 type HeaderUser = { firstName: string | null; role: UserRole } | null;
+
 
 const navItems = [
   { href: "/", label: "Головна" },
@@ -16,7 +19,13 @@ const navItems = [
   { href: "/news", label: "Новини" },
 ];
 
-export default function SiteHeader({ user }: { user: HeaderUser }) {
+type SiteHeaderProps = {
+  user: HeaderUser;
+  theme: Theme;
+  teamThemeAvailable: boolean;
+};
+
+export default function SiteHeader({ user, theme, teamThemeAvailable }: SiteHeaderProps) {
   const pathname = usePathname();
 
   const isActive = (href: string) =>
@@ -46,6 +55,8 @@ export default function SiteHeader({ user }: { user: HeaderUser }) {
             ))}
           </nav>
 
+          <ThemeSwitcher theme={theme} teamAvailable={teamThemeAvailable} />
+          
           <Link
             href={user ? "/account" : "/login"}
             className="shrink-0 whitespace-nowrap rounded-md border border-line-strong px-3 py-1.5 text-sm hover:bg-subtle"

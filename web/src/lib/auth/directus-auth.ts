@@ -13,6 +13,7 @@ export type DirectusMe = {
   role: { name: string } | null;
   favorite_driver: string | null;
   favorite_team: string | null;
+  theme: string | null;
 };
 
 function post(path: string, body: unknown): Promise<Response> {
@@ -53,7 +54,7 @@ export async function directusLogout(refreshToken: string): Promise<void> {
 
 export async function directusMe(accessToken: string): Promise<DirectusMe | null> {
   const res = await fetch(
-        `${DIRECTUS_URL}/users/me?fields=id,first_name,email,role.name,favorite_driver,favorite_team`,
+        `${DIRECTUS_URL}/users/me?fields=id,first_name,email,role.name,favorite_driver,favorite_team,theme`,
     {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store", // дані користувача в спільний кеш класти не можна

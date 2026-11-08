@@ -15,6 +15,7 @@ export type CurrentUser = {
   role: UserRole;
   favoriteDriver: string | null;
   favoriteTeam: string | null;
+  theme: string | null;
 };
 
 type CookieOptions = {
@@ -67,6 +68,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
       role: toRole(me.role?.name),
       favoriteDriver: me.favorite_driver,
       favoriteTeam: me.favorite_team,
+      theme: me.theme,
     };
   } catch {
     return null; // Directus недоступний — працюємо як з гостем
