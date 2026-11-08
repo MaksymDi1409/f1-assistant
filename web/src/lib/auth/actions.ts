@@ -60,7 +60,10 @@ export async function registerAction(
     // Одразу входимо, щоб не просити ввести пароль ще раз
     const tokens = await directusLogin(email, password);
     if (!tokens) {
-      return { error: "Не вдалося увійти. Можливо, цей email уже зареєстрований" };
+      return {
+        error:
+          "Акаунт не вдалося активувати. Можливо, цей email уже зареєстрований або акаунт очікує підтвердження",
+      };
     }
     setSessionCookies(await cookies(), tokens);
   } catch (error) {
