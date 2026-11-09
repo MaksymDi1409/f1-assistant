@@ -1,12 +1,21 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { readChatStream } from "@/lib/chat-stream";
 import ChatMessageView from "./ChatMessageView";
 import type { UIMessage } from "./types";
 
-export default function Chat({ quickQuestions }: { quickQuestions: string[] }) {
+type ChatProps = {
+  quickQuestions: string[];
+  limit: number | null; // null — без обмежень
+  initialRemaining: number | null;
+  isGuest: boolean;
+};
+
+export default function Chat({ quickQuestions, limit, initialRemaining, isGuest }: ChatProps) {
   const [messages, setMessages] = useState<UIMessage[]>([]);
+  const [remaining, setRemaining] = useState(initialRemaining);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -21,9 +30,11 @@ export default function Chat({ quickQuestions }: { quickQuestions: string[] }) {
     setMessages((prev) => prev.map((m) => (m.id === id ? update(m) : m)));
   }
 
+  const isLimitReached = remaining !== null && remaining <= 0;
+
   async function send(text: string) {
     const content = text.trim();
-    if (!content || isLoading) return;
+    if (!content || isLoading || isLimitReached) return;
 
     const userMessage: UIMessage = {
       id: crypto.randomUUID(),
@@ -54,6 +65,21 @@ export default function Chat({ quickQuestions }: { quickQuestions: string[] }) {
         }),
         signal: controller.signal,
       });
+
+      // Сервер повідомляє залишок у заголовку відповіді
+      const remainingHeader = res.headers.get("X-RateLimit-Remaining");
+      if (remainingHeader !== null) setRemaining(Number(remainingHeader));
+
+      // 429 — ліміт вичерпано: показуємо пояснення від сервера
+      if (res.status === 429) {
+        const data = await res.json().catch(() => null);
+        setRemaining(0);
+        updateMessage(assistantId, (m) => ({
+          ...m,
+          error: data?.error ?? "Ліміт питань вичерпано",
+        }));
+        return;
+      }
 
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
 
@@ -104,7 +130,8 @@ export default function Chat({ quickQuestions }: { quickQuestions: string[] }) {
                 <button
                   key={q}
                   onClick={() => send(q)}
-                  className="rounded-full border border-line px-3 py-1.5 text-sm text-muted transition-colors hover:border-accent/60 hover:text-foreground"
+                  disabled={isLimitReached}
+                  className="rounded-full border border-line px-3 py-1.5 text-sm text-muted transition-colors hover:border-accent/60 hover:text-foreground disabled:opacity-40"
                 >
                   {q}
                 </button>
@@ -123,12 +150,13 @@ export default function Chat({ quickQuestions }: { quickQuestions: string[] }) {
         <div ref={bottomRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2 border-t border-line p-3">
+      <form onSubmit={handleSubmit} className="flex gap-2 border-t border-line p-3 pb-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Напиши питання…"
+          placeholder={isLimitReached ? "Ліміт питань на сьогодні вичерпано" : "Напиши питання…"}
           maxLength={2000}
+          disabled={isLimitReached}
           className="flex-1 rounded-lg bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/50"
         />
         {isLoading ? (
@@ -142,13 +170,28 @@ export default function Chat({ quickQuestions }: { quickQuestions: string[] }) {
         ) : (
           <button
             type="submit"
-            disabled={!input.trim()}
+            disabled={!input.trim() || isLimitReached}
             className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent disabled:opacity-40"
           >
             Надіслати
           </button>
         )}
       </form>
+
+      {limit !== null && remaining !== null && (
+        <p className="px-3 pb-3 text-xs text-muted">
+          Залишилось питань сьогодні: {remaining} з {limit}
+          {isGuest && (
+            <>
+              {" · "}
+              <Link href="/register" className="text-accent hover:underline">
+                Зареєструйся
+              </Link>
+              , щоб отримати більше
+            </>
+          )}
+        </p>
+      )}
     </div>
   );
 }

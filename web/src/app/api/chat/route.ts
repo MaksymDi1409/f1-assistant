@@ -1,8 +1,10 @@
-import { getSiteSettings } from "@/lib/cms/settings";
 import { getProvider } from "@/lib/ai";
 import { buildSystemPrompt } from "@/lib/ai/system-prompt";
 import { f1Tools } from "@/lib/ai/tools";
-import type { StreamEvent, ChatMessage } from "@/lib/ai/types";
+import type { ChatMessage, StreamEvent } from "@/lib/ai/types";
+import { getCurrentUser } from "@/lib/auth/session";
+import { consumeChatLimit, getClientKey, getDailyLimit } from "@/lib/chat-limit";
+import { getSiteSettings } from "@/lib/cms/settings";
 
 const MAX_MESSAGES = 20;
 const MAX_MESSAGE_LENGTH = 2000;
@@ -38,7 +40,30 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid request" }, { status: 400 });
   }
 
-   const settings = await getSiteSettings();
+  const [settings, user] = await Promise.all([getSiteSettings(), getCurrentUser()]);
+
+  // Ліміт перевіряємо до звернення до ШІ: інакше квота Gemini витрачалася б і на зайві запити
+  const rate = consumeChatLimit(getClientKey(user, request.headers), getDailyLimit(user, settings));
+
+  // Стандартні заголовки, за якими клієнт дізнається про ліміт
+  const rateHeaders: Record<string, string> =
+    rate.limit === null
+      ? {}
+      : {
+          "X-RateLimit-Limit": String(rate.limit),
+          "X-RateLimit-Remaining": String(rate.remaining),
+        };
+
+  if (!rate.allowed) {
+    return Response.json(
+      {
+        error: user
+          ? "Ти використав усі питання на сьогодні. Ліміт оновиться опівночі."
+          : "Ліміт питань для гостей вичерпано. Зареєструйся, щоб отримати більше.",
+      },
+      { status: 429, headers: rateHeaders }, // 429 Too Many Requests
+    );
+  }
 
   let provider;
   try {
@@ -50,7 +75,7 @@ export async function POST(request: Request) {
 
   const encoder = new TextEncoder();
 
-    // Server-Sent Events: кожна подія — рядок "data: {...}" і порожній рядок
+  // Server-Sent Events: кожна подія — рядок "data: {...}" і порожній рядок
   const stream = new ReadableStream({
     async start(controller) {
       const send = (event: StreamEvent) => {
@@ -63,7 +88,7 @@ export async function POST(request: Request) {
 
       try {
         for await (const event of provider.streamChat({
-                    system: buildSystemPrompt(new Date(), settings.chat_instructions),
+          system: buildSystemPrompt(new Date(), settings.chat_instructions),
           messages,
           tools: f1Tools,
         })) {
@@ -90,6 +115,7 @@ export async function POST(request: Request) {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      ...rateHeaders,
     },
   });
 }
