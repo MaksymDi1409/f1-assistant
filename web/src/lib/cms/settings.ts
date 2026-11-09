@@ -10,6 +10,8 @@ export type SiteSettings = {
   chat_quick_questions: string[];
   ai_models: string[]; // порожній список = моделі з .env.local
   chat_instructions: string | null;
+  chat_limit_guest: number; // питань на добу для гостя
+  chat_limit_user: number; // для користувача і редактора (адмін — без обмежень)
 };
 
 // Значення за замовчуванням: сайт працює, навіть якщо CMS недоступна
@@ -29,6 +31,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   ],
   ai_models: [],
   chat_instructions: null,
+  chat_limit_guest: 5,
+  chat_limit_user: 30,
 };
 
 // Налаштування оновлюються частіше за статті, щоб зміни адміна було видно швидко
@@ -89,5 +93,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
       typeof s.chat_instructions === "string" && s.chat_instructions.trim()
         ? s.chat_instructions.trim()
         : null,
+    chat_limit_guest: int(s.chat_limit_guest, 0, 1000, d.chat_limit_guest),
+    chat_limit_user: int(s.chat_limit_user, 0, 1000, d.chat_limit_user),
   };
 }
