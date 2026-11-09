@@ -20,14 +20,19 @@ const LIST_FIELDS = ["id", "title", "slug", "summary", "cover", "published_at", 
 // але явний фільтр — другий рівень захисту (defense in depth)
 const PUBLISHED = { status: { _eq: "published" } };
 
+type CacheOptions = {
+  revalidate?: number; // через скільки секунд оновлювати кеш
+  tags?: string[]; // мітки, за якими кеш можна скинути вручну
+};
+
 export async function directusFetch<T>(
   path: string,
   params: Record<string, string> = {},
-  revalidate: number = REVALIDATE_SECONDS,
+  { revalidate = REVALIDATE_SECONDS, tags }: CacheOptions = {},
 ): Promise<T> {
   const query = new URLSearchParams(params).toString();
   const url = `${DIRECTUS_URL}${path}${query ? `?${query}` : ""}`;
-  const res = await fetch(url, { next: { revalidate } });
+  const res = await fetch(url, { next: { revalidate, tags } });
 
   if (!res.ok) {
     throw new Error(`Directus error ${res.status} for ${path}`);
@@ -58,4 +63,21 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
 // Directus сам зменшує картинку і перетворює її на WebP
 export function assetUrl(fileId: string, width: number): string {
   return `${DIRECTUS_URL}/assets/${fileId}?width=${width}&format=webp&quality=80`;
+}
+// Зміна налаштувань сайту від імені адміна. Directus сам перевіряє,
+// що власник токена має право редагувати site_settings
+export async function directusUpdateSettings(
+  accessToken: string,
+  data: Record<string, unknown>,
+): Promise<boolean> {
+  const res = await fetch(`${DIRECTUS_URL}/items/site_settings`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(data),
+    cache: "no-store",
+  });
+  return res.ok;
 }

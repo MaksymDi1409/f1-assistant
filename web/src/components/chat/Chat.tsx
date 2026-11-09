@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useLiveSettings } from "@/components/live/LiveSettingsProvider";
 import { readChatStream } from "@/lib/chat-stream";
 import ChatMessageView from "./ChatMessageView";
 import type { UIMessage } from "./types";
@@ -14,6 +15,7 @@ type ChatProps = {
 };
 
 export default function Chat({ quickQuestions, limit, initialRemaining, isGuest }: ChatProps) {
+  const { settings: live } = useLiveSettings();
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [remaining, setRemaining] = useState(initialRemaining);
   const [input, setInput] = useState("");
@@ -31,10 +33,13 @@ export default function Chat({ quickQuestions, limit, initialRemaining, isGuest 
   }
 
   const isLimitReached = remaining !== null && remaining <= 0;
+  // Адмін може наживо вимкнути чат для гостей
+  const isClosedForGuests = isGuest && !live.chat_guest_enabled;
+  const isBlocked = isLimitReached || isClosedForGuests;
 
   async function send(text: string) {
     const content = text.trim();
-    if (!content || isLoading || isLimitReached) return;
+    if (!content || isLoading || isBlocked) return;
 
     const userMessage: UIMessage = {
       id: crypto.randomUUID(),
@@ -70,13 +75,13 @@ export default function Chat({ quickQuestions, limit, initialRemaining, isGuest 
       const remainingHeader = res.headers.get("X-RateLimit-Remaining");
       if (remainingHeader !== null) setRemaining(Number(remainingHeader));
 
-      // 429 — ліміт вичерпано: показуємо пояснення від сервера
-      if (res.status === 429) {
+      // 429 — ліміт вичерпано, 403/503 — чат вимкнено адміном: показуємо пояснення від сервера
+      if (res.status === 429 || res.status === 403 || res.status === 503) {
         const data = await res.json().catch(() => null);
-        setRemaining(0);
+        if (res.status === 429) setRemaining(0);
         updateMessage(assistantId, (m) => ({
           ...m,
-          error: data?.error ?? "Ліміт питань вичерпано",
+          error: data?.error ?? "Чат зараз недоступний",
         }));
         return;
       }
@@ -130,7 +135,7 @@ export default function Chat({ quickQuestions, limit, initialRemaining, isGuest 
                 <button
                   key={q}
                   onClick={() => send(q)}
-                  disabled={isLimitReached}
+                  disabled={isBlocked}
                   className="rounded-full border border-line px-3 py-1.5 text-sm text-muted transition-colors hover:border-accent/60 hover:text-foreground disabled:opacity-40"
                 >
                   {q}
@@ -154,9 +159,15 @@ export default function Chat({ quickQuestions, limit, initialRemaining, isGuest 
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={isLimitReached ? "Ліміт питань на сьогодні вичерпано" : "Напиши питання…"}
+          placeholder={
+            isClosedForGuests
+              ? "Чат для гостей тимчасово вимкнено"
+              : isLimitReached
+                ? "Ліміт питань на сьогодні вичерпано"
+                : "Напиши питання…"
+          }
           maxLength={2000}
-          disabled={isLimitReached}
+          disabled={isBlocked}
           className="flex-1 rounded-lg bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/50"
         />
         {isLoading ? (
@@ -170,7 +181,7 @@ export default function Chat({ quickQuestions, limit, initialRemaining, isGuest 
         ) : (
           <button
             type="submit"
-            disabled={!input.trim() || isLimitReached}
+            disabled={!input.trim() || isBlocked}
             className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent disabled:opacity-40"
           >
             Надіслати
@@ -178,7 +189,17 @@ export default function Chat({ quickQuestions, limit, initialRemaining, isGuest 
         )}
       </form>
 
-      {limit !== null && remaining !== null && (
+      {isClosedForGuests && (
+        <p className="px-3 pb-3 text-xs text-muted">
+          Адміністратор тимчасово вимкнув чат для гостей.{" "}
+          <Link href="/login?next=/chat" className="text-accent hover:underline">
+            Увійди
+          </Link>
+          , щоб продовжити.
+        </p>
+      )}
+
+      {!isClosedForGuests && limit !== null && remaining !== null && (
         <p className="px-3 pb-3 text-xs text-muted">
           Залишилось питань сьогодні: {remaining} з {limit}
           {isGuest && (

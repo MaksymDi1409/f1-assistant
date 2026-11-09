@@ -41,6 +41,8 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
 
       WEBSOCKETS_ENABLED: "true"
+      # Підключатися до WebSocket можна без входу; дані віддаються з правами ролі Public
+      WEBSOCKETS_REST_AUTH: "public"
 
 volumes:
   db_data:

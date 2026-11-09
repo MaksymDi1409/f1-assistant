@@ -1,11 +1,16 @@
 import { directusFetch } from "./directus";
+import {
+  DEFAULT_LIVE_SETTINGS,
+  parseLiveSettings,
+  type LiveSettings,
+} from "@/lib/live-settings";
 
-export type SiteSettings = {
+// Частина налаштувань (LiveSettings) змінюється наживо через WebSocket,
+// решта застосовується при наступному завантаженні сторінки
+export type SiteSettings = LiveSettings & {
   hero_title: string;
   hero_subtitle: string;
   replay_enabled: boolean;
-  replay_lap: number;
-  replay_speed: number;
   replay_show_labels: boolean;
   chat_quick_questions: string[];
   ai_models: string[]; // порожній список = моделі з .env.local
@@ -17,11 +22,10 @@ export type SiteSettings = {
 // Значення за замовчуванням: сайт працює, навіть якщо CMS недоступна
 // або адмін залишив поле порожнім
 export const DEFAULT_SETTINGS: SiteSettings = {
+  ...DEFAULT_LIVE_SETTINGS,
   hero_title: "F1 Assistant",
   hero_subtitle: "Календар, таблиці, пілоти та AI-помічник для фанатів Формули 1",
   replay_enabled: true,
-  replay_lap: 5,
-  replay_speed: 2,
   replay_show_labels: true,
   chat_quick_questions: [
     "Хто виграв останню гонку?",
@@ -35,7 +39,10 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   chat_limit_user: 30,
 };
 
-// Налаштування оновлюються частіше за статті, щоб зміни адміна було видно швидко
+// Тег кешу: адмінка після змін скидає саме його, і нові значення видно одразу
+export const SETTINGS_CACHE_TAG = "site-settings";
+
+// Якщо налаштування змінили прямо в Directus, сайт підхопить їх не пізніше ніж за 10 с
 const SETTINGS_REVALIDATE_SECONDS = 10;
 
 // ---------- Перевірка значень від адміна ----------
@@ -70,7 +77,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
     data = await directusFetch<Record<string, unknown>>(
       "/items/site_settings",
       {},
-      SETTINGS_REVALIDATE_SECONDS,
+      { revalidate: SETTINGS_REVALIDATE_SECONDS, tags: [SETTINGS_CACHE_TAG] },
     );
   } catch (error) {
     console.warn("Site settings unavailable, using defaults:", error);
@@ -80,11 +87,10 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   const d = DEFAULT_SETTINGS;
 
   return {
+    ...parseLiveSettings(s, d),
     hero_title: text(s.hero_title, d.hero_title),
     hero_subtitle: text(s.hero_subtitle, d.hero_subtitle),
     replay_enabled: bool(s.replay_enabled, d.replay_enabled),
-    replay_lap: int(s.replay_lap, 1, 80, d.replay_lap),
-    replay_speed: int(s.replay_speed, 1, 20, d.replay_speed),
     replay_show_labels: bool(s.replay_show_labels, d.replay_show_labels),
     chat_quick_questions: list(s.chat_quick_questions, d.chat_quick_questions),
     // Назва моделі: лише малі літери, цифри, крапки й дефіси

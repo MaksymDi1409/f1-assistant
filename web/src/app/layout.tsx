@@ -1,11 +1,16 @@
+import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import SiteHeader from "@/components/SiteHeader";
-import "./globals.css";
-import { getCurrentUser } from "@/lib/auth/session";
-import type { CSSProperties } from "react";
 import { cookies } from "next/headers";
+import SiteHeader from "@/components/SiteHeader";
+import AnnouncementBanner from "@/components/live/AnnouncementBanner";
+import { LiveSettingsProvider } from "@/components/live/LiveSettingsProvider";
+import MaintenanceGate from "@/components/live/MaintenanceGate";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getSiteSettings } from "@/lib/cms/settings";
+import { pickLiveSettings } from "@/lib/live-settings";
 import { hasTeamTheme, resolveTheme, THEME_COOKIE } from "@/lib/theme";
+import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,12 +31,15 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const user = await getCurrentUser();
-  const cookieTheme = (await cookies()).get(THEME_COOKIE)?.value;
+  const [user, settings, cookieStore] = await Promise.all([
+    getCurrentUser(),
+    getSiteSettings(),
+    cookies(),
+  ]);
 
   // Пріоритет: вибір у цьому браузері → збережене в профілі → темна
   const { theme, accent, onAccent } = resolveTheme(
-    cookieTheme ?? user?.theme,
+    cookieStore.get(THEME_COOKIE)?.value ?? user?.theme,
     user?.favoriteTeam ?? null,
   );
 
@@ -48,14 +56,18 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col font-sans">
-        <SiteHeader
-          user={user ? { firstName: user.firstName, role: user.role } : null}
-          theme={theme}
-          teamThemeAvailable={hasTeamTheme(user?.favoriteTeam ?? null)}
-        />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
-          {children}
-        </main>
+        {/* Налаштування з сервера стають початковими, далі їх оновлює WebSocket */}
+        <LiveSettingsProvider initial={pickLiveSettings(settings)}>
+          <SiteHeader
+            user={user ? { firstName: user.firstName, role: user.role } : null}
+            theme={theme}
+            teamThemeAvailable={hasTeamTheme(user?.favoriteTeam ?? null)}
+          />
+          <AnnouncementBanner />
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+            <MaintenanceGate isAdmin={user?.role === "admin"}>{children}</MaintenanceGate>
+          </main>
+        </LiveSettingsProvider>
       </body>
     </html>
   );

@@ -33,11 +33,7 @@ async function HomeReplay({ settings }: { settings: SiteSettings }) {
       <p className="mb-3 text-sm text-muted">
         {replay.title} · коло {replay.lap}
       </p>
-      <TrackReplay
-        replay={replay}
-        initialSpeed={settings.replay_speed}
-        initialShowLabels={settings.replay_show_labels}
-      />
+      <TrackReplay replay={replay} initialShowLabels={settings.replay_show_labels} />
     </>
   );
 }

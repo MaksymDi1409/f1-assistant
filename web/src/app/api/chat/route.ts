@@ -42,6 +42,20 @@ export async function POST(request: Request) {
 
   const [settings, user] = await Promise.all([getSiteSettings(), getCurrentUser()]);
 
+  // Перемикачі адміна. Перевіряються на сервері, тож обійти їх через curl не вийде
+  if (settings.maintenance_mode && user?.role !== "admin") {
+    return Response.json(
+      { error: "На сайті технічні роботи. Спробуй трохи пізніше." },
+      { status: 503 }, // 503 Service Unavailable
+    );
+  }
+  if (!user && !settings.chat_guest_enabled) {
+    return Response.json(
+      { error: "Адміністратор тимчасово вимкнув чат для гостей. Увійди, щоб продовжити." },
+      { status: 403 }, // 403 Forbidden
+    );
+  }
+
   // Ліміт перевіряємо до звернення до ШІ: інакше квота Gemini витрачалася б і на зайві запити
   const rate = consumeChatLimit(getClientKey(user, request.headers), getDailyLimit(user, settings));
 

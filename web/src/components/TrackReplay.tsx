@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useLiveSettings } from "@/components/live/LiveSettingsProvider";
 import type { Replay, ReplayPoint } from "@/lib/f1/replay";
 
 const SPEEDS = [1, 2, 5, 10];
@@ -31,25 +33,40 @@ function positionAt(points: ReplayPoint[], t: number): [number, number] | null {
 
 type Props = {
   replay: Replay;
-  initialSpeed?: number;
   initialShowLabels?: boolean;
 };
 
-export default function TrackReplay({
-  replay,
-  initialSpeed = 2,
-  initialShowLabels = true,
-}: Props) {
+export default function TrackReplay({ replay, initialShowLabels = true }: Props) {
+  const router = useRouter();
+  const { settings: live } = useLiveSettings();
+
   const [time, setTime] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [speed, setSpeed] = useState(initialSpeed);
+  const [isPlaying, setIsPlaying] = useState(!live.replay_paused);
+  const [speed, setSpeed] = useState(live.replay_speed);
   const [showLabels, setShowLabels] = useState(initialShowLabels);
 
-  // Якщо адмін задав нестандартну швидкість (наприклад ×3), додаємо її до кнопок
-  const speeds = SPEEDS.includes(initialSpeed)
-    ? SPEEDS
-    : [...SPEEDS, initialSpeed].sort((a, b) => a - b);
-  
+  // Адмін змінив паузу чи швидкість — застосовуємо в момент зміни.
+  // Відвідувач і далі може сам натиснути «Пауза» чи вибрати швидкість
+  const [syncedPaused, setSyncedPaused] = useState(live.replay_paused);
+  if (live.replay_paused !== syncedPaused) {
+    setSyncedPaused(live.replay_paused);
+    setIsPlaying(!live.replay_paused);
+  }
+
+  const [syncedSpeed, setSyncedSpeed] = useState(live.replay_speed);
+  if (live.replay_speed !== syncedSpeed) {
+    setSyncedSpeed(live.replay_speed);
+    setSpeed(live.replay_speed);
+  }
+
+  // Адмін змінив коло: потрібні нові координати з OpenF1, тож просимо сервер перемалювати сторінку
+  useEffect(() => {
+    if (live.replay_lap !== replay.lap) router.refresh();
+  }, [live.replay_lap, replay.lap, router]);
+
+  // Якщо швидкість нестандартна (наприклад ×3), додаємо її до кнопок
+  const speeds = SPEEDS.includes(speed) ? SPEEDS : [...SPEEDS, speed].sort((a, b) => a - b);
+
   // Цикл анімації: на кожному кадрі зсуваємо час на прожиті мілісекунди × швидкість
   useEffect(() => {
     if (!isPlaying) return;

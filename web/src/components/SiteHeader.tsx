@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { UserRole } from "@/lib/auth/session";
-import ThemeSwitcher from "./ThemeSwitcher";
 import type { Theme } from "@/lib/theme";
+import ThemeSwitcher from "./ThemeSwitcher";
 
 type HeaderUser = { firstName: string | null; role: UserRole } | null;
-
 
 const navItems = [
   { href: "/", label: "Головна" },
@@ -28,6 +27,11 @@ type SiteHeaderProps = {
 export default function SiteHeader({ user, theme, teamThemeAvailable }: SiteHeaderProps) {
   const pathname = usePathname();
 
+  // Пункт «Адмін» бачить лише адміністратор. Це лише зручність:
+  // доступ до самої сторінки /admin перевіряє сервер
+  const items =
+    user?.role === "admin" ? [...navItems, { href: "/admin", label: "Адмін" }] : navItems;
+
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
@@ -38,9 +42,9 @@ export default function SiteHeader({ user, theme, teamThemeAvailable }: SiteHead
           F1 <span className="text-accent">Assistant</span>
         </Link>
 
-                <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <nav className="flex gap-1 overflow-x-auto">
-            {navItems.map((item) => (
+            {items.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -56,7 +60,7 @@ export default function SiteHeader({ user, theme, teamThemeAvailable }: SiteHead
           </nav>
 
           <ThemeSwitcher theme={theme} teamAvailable={teamThemeAvailable} />
-          
+
           <Link
             href={user ? "/account" : "/login"}
             className="shrink-0 whitespace-nowrap rounded-md border border-line-strong px-3 py-1.5 text-sm hover:bg-subtle"
