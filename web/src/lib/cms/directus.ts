@@ -81,3 +81,70 @@ export async function directusUpdateSettings(
   });
   return res.ok;
 }
+
+// ---------- Виправлення даних пілотів (лише з токеном адміна) ----------
+
+function adminHeaders(accessToken: string): HeadersInit {
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${accessToken}`,
+  };
+}
+
+async function findDriverOverrideId(
+  accessToken: string,
+  driverId: string,
+): Promise<number | null> {
+  const query = new URLSearchParams({
+    filter: JSON.stringify({ driver_id: { _eq: driverId } }),
+    fields: "id",
+    limit: "1",
+  });
+  const res = await fetch(`${DIRECTUS_URL}/items/driver_overrides?${query}`, {
+    headers: adminHeaders(accessToken),
+    cache: "no-store", // тут потрібні актуальні дані, а не кеш
+  });
+  if (!res.ok) throw new Error(`Directus error ${res.status}`);
+  const rows = (await res.json()).data as { id: number }[];
+  return rows[0]?.id ?? null;
+}
+
+// Створити запис, якщо його ще немає, або оновити наявний (upsert)
+export async function directusSaveDriverOverride(
+  accessToken: string,
+  driverId: string,
+  data: Record<string, unknown>,
+): Promise<boolean> {
+  const id = await findDriverOverrideId(accessToken, driverId);
+
+  const res = id
+    ? await fetch(`${DIRECTUS_URL}/items/driver_overrides/${id}`, {
+        method: "PATCH",
+        headers: adminHeaders(accessToken),
+        body: JSON.stringify(data),
+        cache: "no-store",
+      })
+    : await fetch(`${DIRECTUS_URL}/items/driver_overrides`, {
+        method: "POST",
+        headers: adminHeaders(accessToken),
+        body: JSON.stringify({ driver_id: driverId, ...data }),
+        cache: "no-store",
+      });
+
+  return res.ok;
+}
+
+export async function directusDeleteDriverOverride(
+  accessToken: string,
+  driverId: string,
+): Promise<boolean> {
+  const id = await findDriverOverrideId(accessToken, driverId);
+  if (!id) return true; // видаляти нічого
+
+  const res = await fetch(`${DIRECTUS_URL}/items/driver_overrides/${id}`, {
+    method: "DELETE",
+    headers: adminHeaders(accessToken),
+    cache: "no-store",
+  });
+  return res.ok;
+}

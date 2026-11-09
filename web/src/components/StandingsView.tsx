@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getDriverOverrides } from "@/lib/cms/driver-overrides";
 import {
   getConstructorStandings,
   getDriverStandings,
@@ -18,10 +19,14 @@ export default async function StandingsView({
   favoriteTeamId,
 }: StandingsViewProps) {
   // Два запити паралельно, а не один за одним
-  const [drivers, constructors] = await Promise.all([
+  const [drivers, constructors, overrides] = await Promise.all([
     getDriverStandings(season),
     getConstructorStandings(season),
+    getDriverOverrides(),
   ]);
+
+  // Виправлення команди стосується лише поточного сезону, а не історичних таблиць
+  const isCurrentSeason = season === "current";
 
   if (drivers.length === 0) {
     return <p className="text-muted">Даних за цей сезон немає.</p>;
@@ -72,7 +77,8 @@ export default async function StandingsView({
                         : "text-muted"
                     }`}
                   >
-                    {s.Constructors.at(-1)?.name}
+                    {(isCurrentSeason && overrides.get(s.Driver.driverId)?.team_name) ||
+                      s.Constructors.at(-1)?.name}
                   </td>
                   <td className="pr-1 text-right font-semibold tabular-nums">
                     {s.points}

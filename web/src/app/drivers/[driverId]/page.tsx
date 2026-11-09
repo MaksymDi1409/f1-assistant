@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import ReactMarkdown from "react-markdown";
+import DriverOverrideEditor from "@/components/admin/DriverOverrideEditor";
 import FavoriteDriverButton from "@/components/FavoriteDriverButton";
 import { getCurrentUser } from "@/lib/auth/session";
+import { assetUrl } from "@/lib/cms/directus";
+import { getDriverOverride } from "@/lib/cms/driver-overrides";
 import { getTitleSeasons } from "@/lib/f1/champions";
 import { getAge } from "@/lib/f1/format";
 import {
@@ -45,17 +49,21 @@ export default async function DriverPage({ params }: Props) {
   const driver = await loadDriver(params);
 
   // Усі запити паралельно
-  const [seasonResults, career, standings, user] = await Promise.all([
+  const [seasonResults, career, standings, user, override] = await Promise.all([
     getDriverSeasonResults(driver.driverId),
     getDriverCareerStats(driver.driverId).catch(() => null),
     getDriverStandings(),
     getCurrentUser(),
+    getDriverOverride(driver.driverId),
   ]);
 
-  // Згодом тут буде злиття з CMS: біографія, фото, виправлення
+  // Злиття даних: API — основа, виправлення адміна з CMS мають пріоритет
+  const apiTeam = seasonResults.at(-1)?.result.Constructor.name ?? null;
+  const team = override?.team_name ?? apiTeam;
+  const number = override?.permanent_number ?? driver.permanentNumber ?? null;
+  const isAdmin = user?.role === "admin";
 
   const standing = standings.find((s) => s.Driver.driverId === driver.driverId);
-  const team = seasonResults.at(-1)?.result.Constructor.name;
   const seasonWins = seasonResults.filter((r) => r.result.position === "1").length;
   const seasonPodiums = seasonResults.filter(
     (r) => Number(r.result.position) <= 3,
@@ -69,10 +77,16 @@ export default async function DriverPage({ params }: Props) {
       </Link>
 
       <div className="mb-8 mt-4 flex items-end gap-4">
-        {driver.permanentNumber && (
-          <span className="text-6xl font-bold tabular-nums text-accent">
-            {driver.permanentNumber}
-          </span>
+        {override?.photo && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={assetUrl(override.photo, 240)}
+            alt={`${driver.givenName} ${driver.familyName}`}
+            className="h-24 w-24 shrink-0 rounded-xl object-cover"
+          />
+        )}
+        {number && (
+          <span className="text-6xl font-bold tabular-nums text-accent">{number}</span>
         )}
         <div>
           <p className="text-muted">{driver.givenName}</p>
@@ -94,6 +108,36 @@ export default async function DriverPage({ params }: Props) {
           )}
         </div>
       </div>
+
+      {/* Панель виправлень бачить лише адмін; збереження все одно перевіряє сервер */}
+      {isAdmin && (
+        <div className="mb-8">
+          <DriverOverrideEditor
+            driverId={driver.driverId}
+            apiTeam={apiTeam}
+            apiNumber={driver.permanentNumber ?? null}
+            override={
+              override
+                ? {
+                    id: override.id,
+                    team_name: override.team_name,
+                    permanent_number: override.permanent_number,
+                    bio: override.bio,
+                  }
+                : null
+            }
+          />
+        </div>
+      )}
+
+      {override?.bio && (
+        <section className="mb-8 max-w-3xl">
+          <h2 className="mb-3 text-xl font-semibold">Про пілота</h2>
+          <div className="article-content text-sm">
+            <ReactMarkdown>{override.bio}</ReactMarkdown>
+          </div>
+        </section>
+      )}
 
       <h2 className="mb-3 text-xl font-semibold">Поточний сезон</h2>
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">

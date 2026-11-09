@@ -6,6 +6,7 @@ import {
   getRaceWithResults,
   getSchedule,
 } from "@/lib/f1/jolpica";
+import { getDriverOverride } from "@/lib/cms/driver-overrides";
 import { getTitleSeasons } from "@/lib/f1/champions";
 import type { ToolDefinition } from "./types";
 
@@ -151,10 +152,17 @@ export const f1Tools: ToolDefinition[] = [
         };
       }
 
-      const career = await getDriverCareerStats(driverId);
+      const [career, override] = await Promise.all([
+        getDriverCareerStats(driverId),
+        getDriverOverride(driverId),
+      ]);
+
       return {
         name: `${driver.givenName} ${driver.familyName}`,
-        number: driver.permanentNumber,
+        // Дані, виправлені адміністратором сайту, точніші за API
+        number: override?.permanent_number ?? driver.permanentNumber,
+        currentTeam: override?.team_name ?? undefined,
+        bio: override?.bio ?? undefined,
         code: driver.code,
         nationality: driver.nationality,
         dateOfBirth: driver.dateOfBirth,
