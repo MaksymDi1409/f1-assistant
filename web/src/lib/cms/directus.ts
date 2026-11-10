@@ -3,6 +3,13 @@ const DIRECTUS_URL = process.env.DIRECTUS_URL ?? "http://localhost:8055";
 // Нова стаття з'являється на сайті не пізніше ніж за хвилину
 const REVALIDATE_SECONDS = 60;
 
+export type Category = {
+  id: number;
+  name: string;
+  slug: string;
+  color: string | null; // "#e10600"
+};
+
 export type Article = {
   id: number;
   title: string;
@@ -12,9 +19,25 @@ export type Article = {
   cover: string | null; // ID файлу в Directus
   published_at: string | null;
   date_created: string;
+  category: Category | null; // зв'язок «багато статей → одна категорія» (Many-to-One)
+  user_created: { first_name: string | null } | null; // автор — зв'язок з користувачем
 };
 
-const LIST_FIELDS = ["id", "title", "slug", "summary", "cover", "published_at", "date_created"];
+const LIST_FIELDS = [
+  "id",
+  "title",
+  "slug",
+  "summary",
+  "cover",
+  "published_at",
+  "date_created",
+  // Поля пов'язаних записів Directus віддає в тому ж запиті, через крапку
+  "category.id",
+  "category.name",
+  "category.slug",
+  "category.color",
+  "user_created.first_name",
+];
 
 // Лише опубліковані. Public-доступ у Directus і так це гарантує,
 // але явний фільтр — другий рівень захисту (defense in depth)
@@ -42,12 +65,24 @@ export async function directusFetch<T>(
   return json.data as T;
 }
 
-export function getArticles(): Promise<Article[]> {
+// categorySlug — показати лише статті однієї категорії
+export function getArticles(categorySlug?: string): Promise<Article[]> {
+  const filter = categorySlug
+    ? { _and: [PUBLISHED, { category: { slug: { _eq: categorySlug } } }] }
+    : PUBLISHED;
+
   return directusFetch<Article[]>("/items/articles", {
     fields: LIST_FIELDS.join(","),
-    filter: JSON.stringify(PUBLISHED),
+    filter: JSON.stringify(filter),
     sort: "-published_at,-date_created", // «-» означає «від нових до старих»
     limit: "50",
+  });
+}
+
+export function getCategories(): Promise<Category[]> {
+  return directusFetch<Category[]>("/items/categories", {
+    fields: "id,name,slug,color",
+    sort: "name",
   });
 }
 

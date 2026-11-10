@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import CategoryBadge from "@/components/news/CategoryBadge";
 import { assetUrl, getArticleBySlug, type Article } from "@/lib/cms/directus";
 import { formatDate } from "@/lib/f1/format";
 
@@ -45,9 +46,11 @@ export default async function ArticlePage({ params }: Props) {
         ← Новини
       </Link>
 
-      <p className="mt-4 text-sm text-muted">
-        {formatDate(article.published_at ?? article.date_created)}
-      </p>
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-muted">
+        {article.category && <CategoryBadge category={article.category} asLink />}
+        <span>{formatDate(article.published_at ?? article.date_created)}</span>
+        {article.user_created?.first_name && <span>· Автор: {article.user_created.first_name}</span>}
+      </div>
       <h1 className="mt-1 text-4xl font-bold tracking-tight">{article.title}</h1>
       {article.summary && (
         <p className="mt-3 text-lg text-muted">{article.summary}</p>
