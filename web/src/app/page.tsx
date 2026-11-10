@@ -3,8 +3,9 @@ import Link from "next/link";
 import TrackReplay from "@/components/TrackReplay";
 import { getSiteSettings, type SiteSettings } from "@/lib/cms/settings";
 import { buildReplay, getLatestRaceSession } from "@/lib/f1/replay";
-import { getDictionaryFor } from "@/lib/i18n/dictionaries";
-import { getLocale } from "@/lib/i18n/server";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
+import { fmt } from "@/lib/i18n/format";
+import { getI18n } from "@/lib/i18n/server";
 
 async function loadReplay(lap: number) {
   try {
@@ -18,14 +19,13 @@ async function loadReplay(lap: number) {
 }
 
 // Окремий асинхронний компонент: лише він чекає на OpenF1
-async function HomeReplay({ settings }: { settings: SiteSettings }) {
+async function HomeReplay({ settings, t }: { settings: SiteSettings; t: Dictionary }) {
   const replay = await loadReplay(settings.replay_lap);
 
   if (!replay) {
     return (
       <p className="rounded-xl border border-line bg-surface p-6 text-sm text-muted">
-        Повтор зараз недоступний: дані OpenF1 тимчасово не завантажились. Спробуй
-        пізніше.
+        {t.home.replayUnavailable}
       </p>
     );
   }
@@ -33,24 +33,23 @@ async function HomeReplay({ settings }: { settings: SiteSettings }) {
   return (
     <>
       <p className="mb-3 text-sm text-muted">
-        {replay.title} · коло {replay.lap}
+        {fmt(t.home.replayCaption, { title: replay.title, lap: replay.lap })}
       </p>
       <TrackReplay replay={replay} initialShowLabels={settings.replay_show_labels} />
     </>
   );
 }
 
-function ReplaySkeleton() {
+function ReplaySkeleton({ text }: { text: string }) {
   return (
     <div className="flex h-80 animate-pulse items-center justify-center rounded-xl border border-line bg-surface text-sm text-muted">
-      Завантажую повтор кола…
+      {text}
     </div>
   );
 }
 
 export default async function HomePage() {
-  const [settings, locale] = await Promise.all([getSiteSettings(), getLocale()]);
-  const dict = getDictionaryFor(locale);
+  const [settings, { locale, t: dict }] = await Promise.all([getSiteSettings(), getI18n()]);
 
   // Останнє слово заголовка виділяємо червоним: "F1 Assistant" → "F1 <Assistant>"
   const words = settings.hero_title.split(" ");
@@ -85,8 +84,8 @@ export default async function HomePage() {
       {settings.replay_enabled && (
         <section>
           <h2 className="mb-1 text-xl font-semibold">{dict.home.replayTitle}</h2>
-          <Suspense fallback={<ReplaySkeleton />}>
-            <HomeReplay settings={settings} />
+          <Suspense fallback={<ReplaySkeleton text={dict.home.replayLoading} />}>
+            <HomeReplay settings={settings} t={dict} />
           </Suspense>
         </section>
       )}

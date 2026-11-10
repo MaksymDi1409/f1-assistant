@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
+import { useI18n } from "@/components/i18n/I18nProvider";
 import { useLiveSettings, type ConnectionStatus } from "@/components/live/LiveSettingsProvider";
 import { updateLiveSettingsAction } from "@/lib/cms/admin-actions";
 import {
@@ -8,13 +9,14 @@ import {
   type AnnouncementLevel,
   type LiveSettings,
 } from "@/lib/live-settings";
+import { fmt } from "@/lib/i18n/format";
 
 const SPEEDS = [1, 2, 5, 10];
 
-const STATUS_LABELS: Record<ConnectionStatus, { text: string; color: string }> = {
-  online: { text: "онлайн", color: "bg-green-500" },
-  connecting: { text: "підключення…", color: "bg-amber-500" },
-  offline: { text: "немає з'єднання", color: "bg-red-500" },
+const STATUS_COLORS: Record<ConnectionStatus, string> = {
+  online: "bg-green-500",
+  connecting: "bg-amber-500",
+  offline: "bg-red-500",
 };
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
@@ -67,6 +69,8 @@ function Toggle({
 
 export default function AdminPanel() {
   const { settings, status, apply } = useLiveSettings();
+  const { t: dict } = useI18n();
+  const t = dict.admin;
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -88,27 +92,26 @@ export default function AdminPanel() {
     });
   }
 
-  const statusInfo = STATUS_LABELS[status];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
         <p className="flex items-center gap-2">
-          <span className={`h-2.5 w-2.5 rounded-full ${statusInfo.color}`} aria-hidden="true" />
-          Канал реального часу (WebSocket): {statusInfo.text}
+          <span className={`h-2.5 w-2.5 rounded-full ${STATUS_COLORS[status]}`} aria-hidden="true" />
+          {fmt(t.channel, { status: t.status[status] })}
         </p>
-        {isPending && <p className="text-muted">Збереження…</p>}
+        {isPending && <p className="text-muted">{t.saving}</p>}
         {error && <p className="text-red-400">{error}</p>}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Оголошення для відвідувачів">
+        <Card title={t.announcementCard}>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             maxLength={ANNOUNCEMENT_MAX_LENGTH}
             rows={3}
-            placeholder="Наприклад: через 10 хвилин старт Гран-прі!"
+            placeholder={t.announcementPlaceholder}
             className="w-full rounded-lg border border-line bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/50"
           />
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -117,8 +120,8 @@ export default function AdminPanel() {
               onChange={(e) => setLevel(e.target.value as AnnouncementLevel)}
               className="rounded-lg border border-line bg-background px-3 py-2 text-sm"
             >
-              <option value="info">📢 Інформація</option>
-              <option value="warning">⚠ Попередження</option>
+              <option value="info">{t.levelInfo}</option>
+              <option value="warning">{t.levelWarning}</option>
             </select>
             <button
               disabled={isPending || !text.trim()}
@@ -127,7 +130,7 @@ export default function AdminPanel() {
               }
               className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent disabled:opacity-50"
             >
-              {settings.announcement_active ? "Оновити" : "Показати"}
+              {settings.announcement_active ? t.update : t.show}
             </button>
             {settings.announcement_active && (
               <button
@@ -135,23 +138,23 @@ export default function AdminPanel() {
                 onClick={() => save({ announcement_active: false })}
                 className="rounded-lg border border-line-strong px-4 py-2 text-sm hover:bg-subtle disabled:opacity-50"
               >
-                Сховати
+                {t.hide}
               </button>
             )}
           </div>
           <p className="mt-3 text-xs text-muted">
-            Зараз: {settings.announcement_active ? "показується на сайті" : "приховано"}
+            {settings.announcement_active ? t.announcementShown : t.announcementHidden}
           </p>
         </Card>
 
-        <Card title="Повтор кола на головній">
+        <Card title={t.replayCard}>
           <div className="flex flex-wrap items-center gap-2">
             <button
               disabled={isPending}
               onClick={() => save({ replay_paused: !settings.replay_paused })}
               className="w-32 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent disabled:opacity-50"
             >
-              {settings.replay_paused ? "▶ Продовжити" : "⏸ Пауза"}
+              {settings.replay_paused ? t.resume : t.pause}
             </button>
             <div className="flex gap-1">
               {SPEEDS.map((s) => (
@@ -173,7 +176,7 @@ export default function AdminPanel() {
 
           <div className="mt-4 flex items-center gap-2 text-sm">
             <label htmlFor="replay-lap" className="text-muted">
-              Коло
+              {t.lap}
             </label>
             <input
               id="replay-lap"
@@ -189,36 +192,38 @@ export default function AdminPanel() {
               onClick={() => save({ replay_lap: Number(lap) })}
               className="rounded-lg border border-line-strong px-3 py-1.5 hover:bg-subtle disabled:opacity-50"
             >
-              Застосувати
+              {t.apply}
             </button>
           </div>
           <p className="mt-3 text-xs text-muted">
-            Зараз: коло {settings.replay_lap}, ×{settings.replay_speed},{" "}
-            {settings.replay_paused ? "на паузі" : "відтворюється"}
+            {fmt(t.replayState, {
+              lap: settings.replay_lap,
+              speed: settings.replay_speed,
+              state: settings.replay_paused ? t.replayPaused : t.replayPlaying,
+            })}
           </p>
         </Card>
 
-        <Card title="Доступ до сайту">
+        <Card title={t.accessCard}>
           <Toggle
-            label="Чат для гостей"
-            description="Вимкни, щоб AI-чатом могли користуватися лише зареєстровані"
+            label={t.guestChat}
+            description={t.guestChatDescription}
             checked={settings.chat_guest_enabled}
             disabled={isPending}
             onChange={(value) => save({ chat_guest_enabled: value })}
           />
           <Toggle
-            label="Режим техробіт"
-            description="Відвідувачі бачать заглушку, адміністратор — сайт"
+            label={t.maintenance}
+            description={t.maintenanceDescription}
             checked={settings.maintenance_mode}
             disabled={isPending}
             onChange={(value) => save({ maintenance_mode: value })}
           />
         </Card>
 
-        <Card title="Інші налаштування">
+        <Card title={t.otherCard}>
           <p className="text-sm text-muted">
-            Заголовок головної, швидкі питання, моделі ШІ, ліміти чату, статті та користувачі
-            редагуються в Directus.
+            {t.otherText}
           </p>
           <a
             href={`${process.env.NEXT_PUBLIC_DIRECTUS_URL ?? "http://localhost:8055"}/admin`}
@@ -226,7 +231,7 @@ export default function AdminPanel() {
             rel="noopener noreferrer"
             className="mt-3 inline-block text-sm text-accent hover:underline"
           >
-            Відкрити Directus ↗
+            {t.openDirectus}
           </a>
         </Card>
       </div>

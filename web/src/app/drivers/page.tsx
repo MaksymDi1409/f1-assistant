@@ -4,25 +4,28 @@ import PageHeader from "@/components/PageHeader";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getDriverOverrides } from "@/lib/cms/driver-overrides";
 import { getDriverStandings } from "@/lib/f1/jolpica";
+import { fmt } from "@/lib/i18n/format";
 import { getDictionary } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Пілоти" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getDictionary()).meta.drivers };
+}
 
 export default async function DriversPage() {
   // Беремо пілотів із таблиці: там одразу є команда, позиція й очки
-  const [standings, user, overrides] = await Promise.all([
+  const [standings, user, overrides, dict] = await Promise.all([
     getDriverStandings(),
     getCurrentUser(),
     getDriverOverrides(),
+    getDictionary(),
   ]);
-  const dict = await getDictionary();
 
   return (
     <>
       <PageHeader title={dict.pages.driversTitle} description={dict.pages.driversDescription} />
 
       {standings.length === 0 ? (
-        <p className="text-muted">Сезон ще не розпочався.</p>
+        <p className="text-muted">{dict.pages.seasonNotStarted}</p>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {standings.map((s) => {
@@ -43,12 +46,12 @@ export default async function DriversPage() {
                   <div className="flex items-start justify-between">
                     <span className="text-3xl font-bold tabular-nums text-muted">{number}</span>
                     <span className="text-xs text-muted">
-                      P{s.positionText} · {s.points} оч.
+                      P{s.positionText} · {fmt(dict.drivers.pointsShort, { points: s.points })}
                     </span>
                   </div>
                   <p className="mt-3 text-sm text-muted">
                     {s.Driver.givenName}
-                    {isFavorite && <span className="ml-1.5 text-accent">★ Улюблений</span>}
+                    {isFavorite && <span className="ml-1.5 text-accent">{dict.drivers.favorite}</span>}
                   </p>
                   <p className="text-xl font-bold">{s.Driver.familyName}</p>
                   <p className="mt-1 text-sm text-muted">{team}</p>

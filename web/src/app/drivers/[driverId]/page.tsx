@@ -16,6 +16,8 @@ import {
   getDriverStandings,
 } from "@/lib/f1/jolpica";
 import type { Driver } from "@/lib/f1/types";
+import { plural } from "@/lib/i18n/format";
+import { getI18n } from "@/lib/i18n/server";
 
 type Props = PageProps<"/drivers/[driverId]">;
 
@@ -49,19 +51,24 @@ export default async function DriverPage({ params }: Props) {
   const driver = await loadDriver(params);
 
   // Усі запити паралельно
-  const [seasonResults, career, standings, user, override] = await Promise.all([
-    getDriverSeasonResults(driver.driverId),
-    getDriverCareerStats(driver.driverId).catch(() => null),
-    getDriverStandings(),
-    getCurrentUser(),
-    getDriverOverride(driver.driverId),
-  ]);
+  const [seasonResults, career, standings, user, override, { locale, t: dict }] =
+    await Promise.all([
+      getDriverSeasonResults(driver.driverId),
+      getDriverCareerStats(driver.driverId).catch(() => null),
+      getDriverStandings(),
+      getCurrentUser(),
+      getDriverOverride(driver.driverId),
+      getI18n(),
+    ]);
+  const t = dict.driver;
 
   // Злиття даних: API — основа, виправлення адміна з CMS мають пріоритет
   const apiTeam = seasonResults.at(-1)?.result.Constructor.name ?? null;
   const team = override?.team_name ?? apiTeam;
   const number = override?.permanent_number ?? driver.permanentNumber ?? null;
   const isAdmin = user?.role === "admin";
+  // Біографія потрібною мовою; якщо англійської немає — українська
+  const bio = (locale === "en" ? override?.bio_en : null) ?? override?.bio ?? null;
 
   const standing = standings.find((s) => s.Driver.driverId === driver.driverId);
   const seasonWins = seasonResults.filter((r) => r.result.position === "1").length;
@@ -73,7 +80,7 @@ export default async function DriverPage({ params }: Props) {
   return (
     <>
       <Link href="/drivers" className="text-sm text-muted hover:text-foreground">
-        ← Пілоти
+        {t.back}
       </Link>
 
       <div className="mb-8 mt-4 flex items-end gap-4">
@@ -92,7 +99,7 @@ export default async function DriverPage({ params }: Props) {
           <p className="text-muted">{driver.givenName}</p>
           <h1 className="text-4xl font-bold tracking-tight">{driver.familyName}</h1>
           <p className="mt-1 text-sm text-muted">
-            {[team, driver.nationality, `${getAge(driver.dateOfBirth)} років`]
+            {[team, driver.nationality, plural(t.age, getAge(driver.dateOfBirth), locale)]
               .filter(Boolean)
               .join(" · ")}
           </p>
@@ -123,6 +130,7 @@ export default async function DriverPage({ params }: Props) {
                     team_name: override.team_name,
                     permanent_number: override.permanent_number,
                     bio: override.bio,
+                    bio_en: override.bio_en,
                   }
                 : null
             }
@@ -130,34 +138,34 @@ export default async function DriverPage({ params }: Props) {
         </div>
       )}
 
-      {override?.bio && (
+      {bio && (
         <section className="mb-8 max-w-3xl">
-          <h2 className="mb-3 text-xl font-semibold">Про пілота</h2>
+          <h2 className="mb-3 text-xl font-semibold">{t.about}</h2>
           <div className="article-content text-sm">
-            <ReactMarkdown>{override.bio}</ReactMarkdown>
+            <ReactMarkdown>{bio}</ReactMarkdown>
           </div>
         </section>
       )}
 
-      <h2 className="mb-3 text-xl font-semibold">Поточний сезон</h2>
+      <h2 className="mb-3 text-xl font-semibold">{t.currentSeason}</h2>
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Позиція" value={standing ? `P${standing.positionText}` : "—"} />
-        <StatCard label="Очки" value={standing?.points ?? 0} />
-        <StatCard label="Перемоги" value={seasonWins} />
-        <StatCard label="Подіуми" value={seasonPodiums} />
+        <StatCard label={t.position} value={standing ? `P${standing.positionText}` : "—"} />
+        <StatCard label={t.points} value={standing?.points ?? 0} />
+        <StatCard label={t.wins} value={seasonWins} />
+        <StatCard label={t.podiums} value={seasonPodiums} />
       </div>
 
-      <h2 className="mb-3 text-xl font-semibold">Кар&apos;єра</h2>
+      <h2 className="mb-3 text-xl font-semibold">{t.career}</h2>
       <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Старти" value={career?.starts ?? "—"} />
-        <StatCard label="Перемоги" value={career?.wins ?? "—"} />
-        <StatCard label="Подіуми" value={career?.podiums ?? "—"} />
-        <StatCard label="Титули" value={titleSeasons.length} />
+        <StatCard label={t.starts} value={career?.starts ?? "—"} />
+        <StatCard label={t.wins} value={career?.wins ?? "—"} />
+        <StatCard label={t.podiums} value={career?.podiums ?? "—"} />
+        <StatCard label={t.titles} value={titleSeasons.length} />
       </div>
 
       {titleSeasons.length > 0 ? (
         <p className="mb-8 text-sm text-muted">
-          Чемпіон світу:{" "}
+          {t.champion}{" "}
           {titleSeasons.map((season, i) => (
             <span key={season}>
               {i > 0 && ", "}
@@ -176,15 +184,15 @@ export default async function DriverPage({ params }: Props) {
 
       {seasonResults.length > 0 && (
         <>
-          <h2 className="mb-3 text-xl font-semibold">Результати сезону</h2>
+          <h2 className="mb-3 text-xl font-semibold">{t.seasonResults}</h2>
           <table className="w-full text-sm">
             <thead className="text-left text-muted">
               <tr>
-                <th className="w-12 py-2">Етап</th>
-                <th>Гонка</th>
-                <th className="text-right">Старт</th>
-                <th className="text-right">Фініш</th>
-                <th className="w-14 text-right">Очки</th>
+                <th className="w-12 py-2">{t.round}</th>
+                <th>{t.race}</th>
+                <th className="text-right">{t.grid}</th>
+                <th className="text-right">{t.finish}</th>
+                <th className="w-14 text-right">{t.points}</th>
               </tr>
             </thead>
             <tbody>
@@ -200,7 +208,7 @@ export default async function DriverPage({ params }: Props) {
                     </Link>
                   </td>
                   <td className="text-right tabular-nums text-muted">
-                    {result.grid === "0" ? "Піт-лейн" : result.grid}
+                    {result.grid === "0" ? t.pitLane : result.grid}
                   </td>
                   <td className="text-right tabular-nums">{result.positionText}</td>
                   <td className="text-right font-semibold tabular-nums">
@@ -219,7 +227,7 @@ export default async function DriverPage({ params }: Props) {
         rel="noopener noreferrer"
         className="mt-8 inline-block text-sm text-accent hover:underline"
       >
-        Детальніше у Вікіпедії ↗
+        {t.wikipedia}
       </a>
     </>
   );

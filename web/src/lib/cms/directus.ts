@@ -5,10 +5,13 @@ const REVALIDATE_SECONDS = 60;
 
 export type Category = {
   id: number;
-  name: string;
+  name: string; // назва українською
+  name_en: string | null; // назва англійською
   slug: string;
   color: string | null; // "#e10600"
 };
+
+export type ArticleLanguage = "uk" | "en";
 
 export type Article = {
   id: number;
@@ -21,7 +24,12 @@ export type Article = {
   date_created: string;
   category: Category | null; // зв'язок «багато статей → одна категорія» (Many-to-One)
   user_created: { first_name: string | null } | null; // автор — зв'язок з користувачем
-  // Англійський переклад (робить ШІ, редактор може виправити в CMS)
+  // Мова, якою статтю написано. Переклад на іншу мову робить ШІ,
+  // і редактор може виправити його в CMS
+  language: ArticleLanguage | null;
+  title_uk: string | null;
+  summary_uk: string | null;
+  content_uk: string | null;
   title_en: string | null;
   summary_en: string | null;
   content_en: string | null;
@@ -41,9 +49,13 @@ const LIST_FIELDS = [
   // Поля пов'язаних записів Directus віддає в тому ж запиті, через крапку
   "category.id",
   "category.name",
+  "category.name_en",
   "category.slug",
   "category.color",
   "user_created.first_name",
+  "language",
+  "title_uk",
+  "summary_uk",
   "title_en",
   "summary_en",
 ];
@@ -94,7 +106,7 @@ export function getArticles(categorySlug?: string): Promise<Article[]> {
 
 export function getCategories(): Promise<Category[]> {
   return directusFetch<Category[]>("/items/categories", {
-    fields: "id,name,slug,color",
+    fields: "id,name,name_en,slug,color",
     sort: "name",
   });
 }
@@ -103,7 +115,7 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
   const articles = await directusFetch<Article[]>(
     "/items/articles",
     {
-      fields: [...LIST_FIELDS, "content", "content_en"].join(","),
+      fields: [...LIST_FIELDS, "content", "content_uk", "content_en"].join(","),
       filter: JSON.stringify({ _and: [PUBLISHED, { slug: { _eq: slug } }] }),
       limit: "1",
     },
@@ -112,31 +124,60 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
   return articles[0] ?? null;
 }
 
-export type LocalizedArticle = Article & { isTranslated: boolean };
+// Категорія потрібною мовою: якщо англійської назви немає — українська
+export function localizeCategory(category: Category, locale: ArticleLanguage): Category {
+  return locale === "en" && category.name_en ? { ...category, name: category.name_en } : category;
+}
 
-// Для англійської версії підставляємо переклад, якщо він є; інакше — оригінал
-export function localizeArticle(article: Article, locale: "uk" | "en"): LocalizedArticle {
-  if (locale === "en" && article.title_en) {
-    return {
-      ...article,
-      title: article.title_en,
-      summary: article.summary_en ?? article.summary,
-      content: article.content_en ?? article.content,
-      isTranslated: true,
-    };
-  }
-  return { ...article, isTranslated: false };
+// original — показуємо мову оригіналу, translated — переклад ШІ, missing — перекладу ще немає
+export type TranslationStatus = "original" | "translated" | "missing";
+
+export type LocalizedArticle = Article & {
+  originalLanguage: ArticleLanguage;
+  translationStatus: TranslationStatus;
+};
+
+// Стаття мовою сайту: оригінал, якщо мови збігаються; інакше переклад, якщо він є
+export function localizeArticle(article: Article, locale: ArticleLanguage): LocalizedArticle {
+  const originalLanguage: ArticleLanguage = article.language === "en" ? "en" : "uk";
+  const category = article.category ? localizeCategory(article.category, locale) : null;
+  const base = { ...article, category, originalLanguage };
+
+  if (locale === originalLanguage) return { ...base, translationStatus: "original" };
+
+  const translated =
+    locale === "en"
+      ? { title: article.title_en, summary: article.summary_en, content: article.content_en }
+      : { title: article.title_uk, summary: article.summary_uk, content: article.content_uk };
+
+  if (!translated.title) return { ...base, translationStatus: "missing" };
+
+  return {
+    ...base,
+    title: translated.title,
+    summary: translated.summary ?? article.summary,
+    content: translated.content ?? article.content,
+    translationStatus: "translated",
+  };
 }
 
 // Стаття з токеном користувача — для перекладу (редактор бачить і чернетки)
 export async function directusGetArticleForTranslation(
   accessToken: string,
   id: number,
-): Promise<{ title: string; summary: string | null; content: string | null } | null> {
-  const res = await fetch(`${DIRECTUS_URL}/items/articles/${id}?fields=title,summary,content`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
+): Promise<{
+  title: string;
+  summary: string | null;
+  content: string | null;
+  language: ArticleLanguage | null;
+} | null> {
+  const res = await fetch(
+    `${DIRECTUS_URL}/items/articles/${id}?fields=title,summary,content,language`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    },
+  );
   if (!res.ok) return null;
   return (await res.json()).data;
 }
@@ -146,7 +187,7 @@ export async function directusGetArticleForTranslation(
 export async function directusSaveArticleTranslation(
   accessToken: string,
   id: number,
-  data: { title_en: string; summary_en: string | null; content_en: string | null },
+  data: Record<string, string | null>,
 ): Promise<boolean> {
   const res = await fetch(`${DIRECTUS_URL}/items/articles/${id}`, {
     method: "PATCH",

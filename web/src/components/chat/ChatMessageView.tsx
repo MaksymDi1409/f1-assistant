@@ -2,15 +2,9 @@
 
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
+import { useI18n } from "@/components/i18n/I18nProvider";
+import { fmt } from "@/lib/i18n/format";
 import type { UIMessage } from "./types";
-
-const TOOL_LABELS: Record<string, string> = {
-  get_season_schedule: "Переглядаю календар",
-  get_race_results: "Шукаю результати гонки",
-  get_driver_standings: "Перевіряю таблицю пілотів",
-  get_constructor_standings: "Перевіряю командний залік",
-  get_driver_info: "Дивлюсь статистику пілота",
-};
 
 type Props = {
   message: UIMessage;
@@ -18,6 +12,10 @@ type Props = {
 };
 
 export default function ChatMessageView({ message, isStreaming }: Props) {
+  // Хук викликаємо до будь-якого return: React вимагає однаковий порядок хуків
+  const { t: dict } = useI18n();
+  const t = dict.chat;
+
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
@@ -34,7 +32,7 @@ export default function ChatMessageView({ message, isStreaming }: Props) {
     <div className="max-w-[85%] space-y-2">
       {isStreaming && !message.content && (
         <p className="animate-pulse text-sm text-muted">
-          {lastTool ? `${TOOL_LABELS[lastTool] ?? "Шукаю дані"}…` : "Думаю…"}
+          {lastTool ? `${t.tools[lastTool] ?? t.searching}…` : t.thinking}
         </p>
       )}
 
@@ -71,7 +69,9 @@ export default function ChatMessageView({ message, isStreaming }: Props) {
         <p className="text-xs text-muted">
           {[
             message.model,
-            message.tools.length > 0 ? `інструментів: ${message.tools.length}` : null,
+            message.tools.length > 0
+              ? fmt(t.toolsCount, { count: message.tools.length })
+              : null,
           ]
             .filter(Boolean)
             .join(" · ")}

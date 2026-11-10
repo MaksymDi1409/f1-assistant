@@ -11,6 +11,8 @@ import {
 import { ACCESS_COOKIE, REFRESH_COOKIE, setSessionCookies } from "./session";
 import { revalidatePath } from "next/cache";
 import { getConstructorStandings, getDriverStandings } from "@/lib/f1/jolpica";
+import { fmt } from "@/lib/i18n/format";
+import { getDictionary } from "@/lib/i18n/server";
 
 export type AuthFormState = { error?: string } | undefined;
 
@@ -31,15 +33,17 @@ export async function loginAction(
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
-  if (!email || !password) return { error: "Введи email і пароль" };
+  const errors = (await getDictionary()).auth.errors;
+
+  if (!email || !password) return { error: errors.emptyFields };
 
   try {
     const tokens = await directusLogin(email, password);
-    if (!tokens) return { error: "Неправильний email або пароль" };
+    if (!tokens) return { error: errors.wrongCredentials };
     setSessionCookies(await cookies(), tokens);
   } catch (error) {
     console.error("Login error:", error);
-    return { error: "Сервер авторизації недоступний, спробуй пізніше" };
+    return { error: errors.serverUnavailable };
   }
 
   // redirect «кидає» спеціальний виняток, тому він поза try/catch
@@ -54,28 +58,27 @@ export async function registerAction(
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
-  if (!firstName || firstName.length > 50) return { error: "Вкажи ім'я (до 50 символів)" };
-  if (!EMAIL_PATTERN.test(email)) return { error: "Неправильний формат email" };
+  const errors = (await getDictionary()).auth.errors;
+
+  if (!firstName || firstName.length > 50) return { error: errors.firstName };
+  if (!EMAIL_PATTERN.test(email)) return { error: errors.emailFormat };
   if (password.length < MIN_PASSWORD_LENGTH) {
-    return { error: `Пароль має містити щонайменше ${MIN_PASSWORD_LENGTH} символів` };
+    return { error: fmt(errors.passwordLength, { min: MIN_PASSWORD_LENGTH }) };
   }
 
   try {
     const registered = await directusRegister(email, password, firstName);
-    if (!registered) return { error: "Не вдалося зареєструватися" };
+    if (!registered) return { error: errors.registerFailed };
 
     // Одразу входимо, щоб не просити ввести пароль ще раз
     const tokens = await directusLogin(email, password);
     if (!tokens) {
-      return {
-        error:
-          "Акаунт не вдалося активувати. Можливо, цей email уже зареєстрований або акаунт очікує підтвердження",
-      };
+      return { error: errors.activationFailed };
     }
     setSessionCookies(await cookies(), tokens);
   } catch (error) {
     console.error("Register error:", error);
-    return { error: "Сервер авторизації недоступний, спробуй пізніше" };
+    return { error: errors.serverUnavailable };
   }
 
   redirect("/account");
@@ -121,7 +124,8 @@ export async function updateFavoritesAction(
   formData: FormData,
 ): Promise<FavoritesFormState> {
   const accessToken = (await cookies()).get(ACCESS_COOKIE)?.value;
-  if (!accessToken) return { error: "Сесія закінчилась, увійди знову" };
+  const dict = await getDictionary();
+  if (!accessToken) return { error: dict.common.sessionExpired };
 
   const patch: Record<string, string | null> = {};
 
@@ -136,13 +140,13 @@ export async function updateFavoritesAction(
     if (driver !== undefined) patch.favorite_driver = driver;
     if (team !== undefined) patch.favorite_team = team;
   } catch {
-    return { error: "Невідомий пілот або команда" };
+    return { error: dict.account.errors.unknownFavorite };
   }
 
-  if (Object.keys(patch).length === 0) return { error: "Нічого не змінено" };
+  if (Object.keys(patch).length === 0) return { error: dict.account.errors.nothingChanged };
 
   const saved = await directusUpdateMe(accessToken, patch).catch(() => false);
-  if (!saved) return { error: "Не вдалося зберегти, спробуй ще раз" };
+  if (!saved) return { error: dict.account.errors.saveFailed };
 
   // Перемалювати всі сторінки: підсвічування улюблених змінилося
   revalidatePath("/", "layout");

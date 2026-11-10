@@ -5,6 +5,7 @@ import type { ChatMessage, StreamEvent } from "@/lib/ai/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { consumeChatLimit, getClientKey, getDailyLimit } from "@/lib/chat-limit";
 import { getSiteSettings } from "@/lib/cms/settings";
+import { getDictionary } from "@/lib/i18n/server";
 
 const MAX_MESSAGES = 20;
 const MAX_MESSAGE_LENGTH = 2000;
@@ -40,18 +41,23 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const [settings, user] = await Promise.all([getSiteSettings(), getCurrentUser()]);
+  const [settings, user, dict] = await Promise.all([
+    getSiteSettings(),
+    getCurrentUser(),
+    getDictionary(),
+  ]);
+  const errors = dict.chat.errors;
 
   // Перемикачі адміна. Перевіряються на сервері, тож обійти їх через curl не вийде
   if (settings.maintenance_mode && user?.role !== "admin") {
     return Response.json(
-      { error: "На сайті технічні роботи. Спробуй трохи пізніше." },
+      { error: errors.maintenance },
       { status: 503 }, // 503 Service Unavailable
     );
   }
   if (!user && !settings.chat_guest_enabled) {
     return Response.json(
-      { error: "Адміністратор тимчасово вимкнув чат для гостей. Увійди, щоб продовжити." },
+      { error: errors.guestsDisabled },
       { status: 403 }, // 403 Forbidden
     );
   }
@@ -72,8 +78,8 @@ export async function POST(request: Request) {
     return Response.json(
       {
         error: user
-          ? "Ти використав усі питання на сьогодні. Ліміт оновиться опівночі."
-          : "Ліміт питань для гостей вичерпано. Зареєструйся, щоб отримати більше.",
+          ? errors.limitUser
+          : errors.limitGuest,
       },
       { status: 429, headers: rateHeaders }, // 429 Too Many Requests
     );
@@ -112,7 +118,7 @@ export async function POST(request: Request) {
         }
       } catch (error) {
         console.error("Chat error:", error);
-        send({ type: "error", message: "Не вдалося отримати відповідь від ШІ" });
+        send({ type: "error", message: errors.aiFailed });
       } finally {
         send({ type: "done" });
         try {

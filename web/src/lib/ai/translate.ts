@@ -25,8 +25,15 @@ const RESPONSE_SCHEMA = {
   required: ["title", "summary", "content"],
 };
 
-export async function translateArticleToEnglish(
+const LANGUAGE_NAMES = { uk: "Ukrainian", en: "English" } as const;
+
+export type TranslationLanguage = keyof typeof LANGUAGE_NAMES;
+
+// Переклад статті в будь-який бік: з української англійською або навпаки
+export async function translateArticle(
   text: ArticleText,
+  from: TranslationLanguage,
+  to: TranslationLanguage,
   models: string[],
 ): Promise<ArticleText> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -34,10 +41,10 @@ export async function translateArticleToEnglish(
 
   const ai = new GoogleGenAI({ apiKey });
 
-  const prompt = `Translate this Formula 1 news article from Ukrainian into natural English.
+  const prompt = `Translate this Formula 1 news article from ${LANGUAGE_NAMES[from]} into natural ${LANGUAGE_NAMES[to]}.
 Rules:
 - keep the Markdown formatting and all links unchanged;
-- write names of drivers, teams and circuits the way they are usually written in English;
+- write names of drivers, teams and circuits the way they are usually written in ${LANGUAGE_NAMES[to]};
 - if a field is empty, return an empty string for it.
 
 Article (JSON):

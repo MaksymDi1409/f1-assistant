@@ -27,3 +27,9 @@ export const getLocale = cache(async (): Promise<Locale> => {
 export async function getDictionary(): Promise<Dictionary> {
   return getDictionaryFor(await getLocale());
 }
+
+// Мова і словник разом — найчастіший випадок у серверних компонентах
+export async function getI18n(): Promise<{ locale: Locale; t: Dictionary }> {
+  const locale = await getLocale();
+  return { locale, t: getDictionaryFor(locale) };
+}

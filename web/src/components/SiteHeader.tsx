@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useI18n } from "@/components/i18n/I18nProvider";
 import type { UserRole } from "@/lib/auth/session";
-import type { Locale } from "@/lib/i18n/config";
-import type { Dictionary } from "@/lib/i18n/dictionaries";
 import type { Theme } from "@/lib/theme";
 import LanguageSwitcher from "./LanguageSwitcher";
 import ThemeSwitcher from "./ThemeSwitcher";
@@ -15,18 +14,12 @@ type SiteHeaderProps = {
   user: HeaderUser;
   theme: Theme;
   teamThemeAvailable: boolean;
-  locale: Locale;
-  labels: Dictionary["nav"]; // тексти меню потрібною мовою
 };
 
-export default function SiteHeader({
-  user,
-  theme,
-  teamThemeAvailable,
-  locale,
-  labels,
-}: SiteHeaderProps) {
+export default function SiteHeader({ user, theme, teamThemeAvailable }: SiteHeaderProps) {
   const pathname = usePathname();
+  const { t } = useI18n();
+  const labels = t.nav;
 
   const navItems = [
     { href: "/", label: labels.home },
@@ -70,7 +63,7 @@ export default function SiteHeader({
             ))}
           </nav>
 
-          <LanguageSwitcher locale={locale} />
+          <LanguageSwitcher />
           <ThemeSwitcher theme={theme} teamAvailable={teamThemeAvailable} />
 
           <Link

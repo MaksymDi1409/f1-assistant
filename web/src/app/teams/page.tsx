@@ -7,9 +7,12 @@ import {
 } from "@/lib/f1/jolpica";
 import type { DriverStanding } from "@/lib/f1/types";
 import { getCurrentUser } from "@/lib/auth/session";
+import { fmt } from "@/lib/i18n/format";
 import { getDictionary } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Команди" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getDictionary()).meta.teams };
+}
 
 export default async function TeamsPage() {
   const [constructors, drivers, user, dict] = await Promise.all([
@@ -32,13 +35,13 @@ export default async function TeamsPage() {
       <PageHeader title={dict.pages.teamsTitle} description={dict.pages.teamsDescription} />
 
       {constructors.length === 0 ? (
-        <p className="text-muted">Сезон ще не розпочався.</p>
+        <p className="text-muted">{dict.pages.seasonNotStarted}</p>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
           {constructors.map((c) => (
             <li
               key={c.Constructor.constructorId}
-                            className={`rounded-xl border bg-surface p-4 ${
+              className={`rounded-xl border bg-surface p-4 ${
                 c.Constructor.constructorId === user?.favoriteTeam
                   ? "border-accent"
                   : "border-line"
@@ -48,15 +51,15 @@ export default async function TeamsPage() {
                 <div>
                   <p className="text-xs text-muted">P{c.positionText}</p>
                   <h2 className="text-xl font-bold">{c.Constructor.name}</h2>
-                                    {c.Constructor.constructorId === user?.favoriteTeam && (
-                    <p className="text-xs text-accent">★ Улюблена команда</p>
+                  {c.Constructor.constructorId === user?.favoriteTeam && (
+                    <p className="text-xs text-accent">{dict.teams.favorite}</p>
                   )}
                   <p className="text-sm text-muted">{c.Constructor.nationality}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-bold tabular-nums">{c.points}</p>
                   <p className="text-xs text-muted">
-                    очок · {c.wins} перемог
+                    {fmt(dict.teams.pointsWins, { wins: c.wins })}
                   </p>
                 </div>
               </div>

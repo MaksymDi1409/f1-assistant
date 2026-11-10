@@ -12,8 +12,8 @@ import {
   type LocalizedArticle,
 } from "@/lib/cms/directus";
 import { formatDate } from "@/lib/f1/format";
-import { getDictionaryFor } from "@/lib/i18n/dictionaries";
-import { getLocale } from "@/lib/i18n/server";
+import { fmt } from "@/lib/i18n/format";
+import { getI18n } from "@/lib/i18n/server";
 
 type Props = PageProps<"/news/[slug]">;
 
@@ -23,7 +23,7 @@ async function loadArticle(params: Props["params"]): Promise<LocalizedArticle> {
   // Slug у Directus: малі латинські літери, цифри та дефіси
   if (!/^[a-z0-9-]+$/.test(slug)) notFound();
 
-  const [article, locale] = await Promise.all([getArticleBySlug(slug), getLocale()]);
+  const [article, { locale }] = await Promise.all([getArticleBySlug(slug), getI18n()]);
   if (!article) notFound();
 
   return localizeArticle(article, locale);
@@ -47,15 +47,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ArticlePage({ params }: Props) {
-  const [article, locale, user] = await Promise.all([
+  const [article, { locale, t: dict }, user] = await Promise.all([
     loadArticle(params),
-    getLocale(),
+    getI18n(),
     getCurrentUser(),
   ]);
-  const t = getDictionaryFor(locale).news;
+  const t = dict.news;
 
-  // Автопереклад доступний редактору й адміну
+  // Автопереклад доступний редактору й адміну; переклад іде на мову, протилежну оригіналу
   const canTranslate = user?.role === "editor" || user?.role === "admin";
+  const targetLanguage = article.originalLanguage === "en" ? "uk" : "en";
+  const hasTranslation = Boolean(
+    targetLanguage === "en" ? article.title_en : article.title_uk,
+  );
+  const target = t.targetLanguage[targetLanguage];
 
   return (
     <article className="mx-auto max-w-3xl">
@@ -76,10 +81,10 @@ export default async function ArticlePage({ params }: Props) {
       <h1 className="mt-2 text-4xl font-bold tracking-tight">{article.title}</h1>
       {article.summary && <p className="mt-3 text-lg text-muted">{article.summary}</p>}
 
-      {/* Англійська версія: чесно позначаємо машинний переклад або його відсутність */}
-      {locale === "en" && (
+      {/* Чесно позначаємо машинний переклад або те, що перекладу ще немає */}
+      {article.translationStatus !== "original" && (
         <p className="mt-4 rounded-lg border border-line bg-subtle px-3 py-2 text-xs text-muted">
-          {article.isTranslated ? `🌐 ${t.machineTranslated}` : t.notTranslated}
+          {article.translationStatus === "translated" ? `🌐 ${t.machineTranslated}` : t.notTranslated}
         </p>
       )}
 
@@ -87,10 +92,10 @@ export default async function ArticlePage({ params }: Props) {
         <div className="mt-4">
           <TranslateArticleButton
             articleId={article.id}
-            hasTranslation={Boolean(article.title_en)}
+            hasTranslation={hasTranslation}
             labels={{
-              translate: t.translate,
-              retranslate: t.retranslate,
+              translate: fmt(t.translate, { target }),
+              retranslate: fmt(t.retranslate, { target }),
               translating: t.translating,
               translated: t.translated,
             }}

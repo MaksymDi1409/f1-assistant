@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getDriverOverrides } from "@/lib/cms/driver-overrides";
+import { getDictionary } from "@/lib/i18n/server";
 import {
   getConstructorStandings,
   getDriverStandings,
@@ -19,30 +20,32 @@ export default async function StandingsView({
   favoriteTeamId,
 }: StandingsViewProps) {
   // Два запити паралельно, а не один за одним
-  const [drivers, constructors, overrides] = await Promise.all([
+  const [drivers, constructors, overrides, dict] = await Promise.all([
     getDriverStandings(season),
     getConstructorStandings(season),
     getDriverOverrides(),
+    getDictionary(),
   ]);
+  const t = dict.standings;
 
   // Виправлення команди стосується лише поточного сезону, а не історичних таблиць
   const isCurrentSeason = season === "current";
 
   if (drivers.length === 0) {
-    return <p className="text-muted">Даних за цей сезон немає.</p>;
+    return <p className="text-muted">{t.noData}</p>;
   }
 
   return (
     <div className="grid gap-10 lg:grid-cols-2">
       <section>
-        <h2 className="mb-3 text-xl font-semibold">Пілоти</h2>
+        <h2 className="mb-3 text-xl font-semibold">{t.drivers}</h2>
         <table className="w-full text-sm">
           <thead className="text-left text-muted">
             <tr>
               <th className="w-10 py-2">#</th>
-              <th>Пілот</th>
-              <th className="hidden sm:table-cell">Команда</th>
-              <th className="text-right">Очки</th>
+              <th>{t.driver}</th>
+              <th className="hidden sm:table-cell">{t.team}</th>
+              <th className="text-right">{t.points}</th>
             </tr>
           </thead>
           <tbody>
@@ -65,7 +68,7 @@ export default async function StandingsView({
                       {s.Driver.givenName} {s.Driver.familyName}
                     </Link>
                     {s.Driver.driverId === favoriteDriverId && (
-                      <span className="ml-1.5 text-accent" title="Улюблений пілот">
+                      <span className="ml-1.5 text-accent" title={t.favoriteDriver}>
                         ★
                       </span>
                     )}
@@ -91,19 +94,19 @@ export default async function StandingsView({
       </section>
 
       <section>
-        <h2 className="mb-3 text-xl font-semibold">Команди</h2>
+        <h2 className="mb-3 text-xl font-semibold">{t.teams}</h2>
         {constructors.length === 0 ? (
           <p className="text-sm text-muted">
-            Кубок конструкторів розігрується з 1958 року.
+            {t.noConstructors}
           </p>
         ) : (
           <table className="w-full text-sm">
             <thead className="text-left text-muted">
               <tr>
                 <th className="w-10 py-2">#</th>
-                <th>Команда</th>
-                <th className="text-right">Перемоги</th>
-                <th className="text-right">Очки</th>
+                <th>{t.team}</th>
+                <th className="text-right">{t.wins}</th>
+                <th className="text-right">{t.points}</th>
               </tr>
             </thead>
             <tbody>
@@ -119,7 +122,7 @@ export default async function StandingsView({
                     <td>
                       {s.Constructor.name}
                       {isFavorite && (
-                        <span className="ml-1.5 text-accent" title="Улюблена команда">
+                        <span className="ml-1.5 text-accent" title={t.favoriteTeam}>
                           ★
                         </span>
                       )}

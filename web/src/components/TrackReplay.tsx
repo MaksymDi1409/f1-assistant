@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/components/i18n/I18nProvider";
 import { useLiveSettings } from "@/components/live/LiveSettingsProvider";
+import { fmt } from "@/lib/i18n/format";
 import type { Replay, ReplayPoint } from "@/lib/f1/replay";
 
 const SPEEDS = [1, 2, 5, 10];
@@ -39,6 +41,7 @@ type Props = {
 export default function TrackReplay({ replay, initialShowLabels = true }: Props) {
   const router = useRouter();
   const { settings: live } = useLiveSettings();
+  const { t } = useI18n();
 
   const [time, setTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(!live.replay_paused);
@@ -77,7 +80,7 @@ export default function TrackReplay({ replay, initialShowLabels = true }: Props)
     const tick = (now: number) => {
       const dt = now - last;
       last = now;
-      setTime((t) => (t + dt * speed) % replay.durationMs);
+      setTime((prev) => (prev + dt * speed) % replay.durationMs);
       frameId = requestAnimationFrame(tick);
     };
 
@@ -91,7 +94,7 @@ export default function TrackReplay({ replay, initialShowLabels = true }: Props)
         viewBox={`0 0 ${replay.width} ${replay.height}`}
         className="mx-auto max-h-[60vh] w-full"
         role="img"
-        aria-label={`Повтор кола ${replay.lap}: ${replay.title}`}
+        aria-label={fmt(t.replay.ariaLabel, { lap: replay.lap, title: replay.title })}
       >
         <polyline
           points={replay.track.map(([x, y]) => `${x},${y}`).join(" ")}
@@ -130,7 +133,7 @@ export default function TrackReplay({ replay, initialShowLabels = true }: Props)
           onClick={() => setIsPlaying((p) => !p)}
           className="w-24 rounded-lg bg-accent px-3 py-1.5 font-medium text-on-accent"
         >
-          {isPlaying ? "Пауза" : "Старт"}
+          {isPlaying ? t.replay.pause : t.replay.play}
         </button>
 
         <div className="flex gap-1">
@@ -154,11 +157,11 @@ export default function TrackReplay({ replay, initialShowLabels = true }: Props)
             onChange={(e) => setShowLabels(e.target.checked)}
             className="accent-accent"
           />
-          Підписи
+          {t.replay.labels}
         </label>
 
         <span className="ml-auto tabular-nums text-muted">
-          {(time / 1000).toFixed(1)} / {(replay.durationMs / 1000).toFixed(1)} с
+          {(time / 1000).toFixed(1)} / {(replay.durationMs / 1000).toFixed(1)} {t.replay.seconds}
         </span>
       </div>
 
@@ -169,7 +172,7 @@ export default function TrackReplay({ replay, initialShowLabels = true }: Props)
         value={time}
         onChange={(e) => setTime(Number(e.target.value))}
         className="mt-3 w-full accent-accent"
-        aria-label="Перемотування"
+        aria-label={t.replay.seek}
       />
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useI18n } from "@/components/i18n/I18nProvider";
 import { updateFavoritesAction } from "@/lib/auth/actions";
 
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
 
 export default function FavoriteDriverButton({ driverId, isFavorite }: Props) {
   const [state, formAction, isPending] = useActionState(updateFavoritesAction, undefined);
+  const { t } = useI18n();
 
   return (
     <form action={formAction} className="inline-flex items-center gap-2">
@@ -24,7 +26,7 @@ export default function FavoriteDriverButton({ driverId, isFavorite }: Props) {
             : "border border-line-strong hover:bg-subtle"
         }`}
       >
-        {isFavorite ? "★ Улюблений пілот" : "☆ Зробити улюбленим"}
+        {isFavorite ? t.driver.favoriteOn : t.driver.favoriteOff}
       </button>
       {state?.error && <span className="text-sm text-red-400">{state.error}</span>}
     </form>

@@ -7,14 +7,18 @@ import {
   getArticles,
   getCategories,
   localizeArticle,
+  localizeCategory,
   type Article,
   type Category,
 } from "@/lib/cms/directus";
 import { formatDate } from "@/lib/f1/format";
 import { getDictionaryFor } from "@/lib/i18n/dictionaries";
-import { getLocale } from "@/lib/i18n/server";
+import { fmt } from "@/lib/i18n/format";
+import { getDictionary, getLocale } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Новини" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getDictionary()).meta.news };
+}
 
 export default async function NewsPage({ searchParams }: PageProps<"/news">) {
   const [{ category }, locale] = await Promise.all([searchParams, getLocale()]);
@@ -36,17 +40,19 @@ export default async function NewsPage({ searchParams }: PageProps<"/news">) {
     console.warn("CMS unavailable:", error);
   }
 
+  // Назви категорій мовою сайту
+  categories = categories.map((c) => localizeCategory(c, locale));
   const activeCategory = categories.find((c) => c.slug === categorySlug);
 
   return (
     <>
       <PageHeader
-        title={activeCategory ? t.titleWithCategory(activeCategory.name) : t.title}
+        title={activeCategory ? fmt(t.titleWithCategory, { name: activeCategory.name }) : t.title}
         description={t.description}
       />
 
       {categories.length > 0 && (
-        <nav aria-label="Категорії" className="mb-6 flex flex-wrap gap-2">
+        <nav aria-label={t.categories} className="mb-6 flex flex-wrap gap-2">
           <Link
             href="/news"
             className={`rounded-full px-3 py-1 text-sm ${

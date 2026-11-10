@@ -8,6 +8,7 @@ export type DriverOverride = {
   team_name: string | null; // поточна команда, якщо API ще не оновився
   permanent_number: string | null;
   bio: string | null; // біографія українською (Markdown)
+  bio_en: string | null; // біографія англійською
   photo: string | null; // ID файлу в Directus
 };
 
@@ -18,7 +19,7 @@ export async function getDriverOverrides(): Promise<Map<string, DriverOverride>>
   try {
     const rows = await directusFetch<DriverOverride[]>(
       "/items/driver_overrides",
-      { fields: "id,driver_id,team_name,permanent_number,bio,photo", limit: "-1" },
+      { fields: "id,driver_id,team_name,permanent_number,bio,bio_en,photo", limit: "-1" },
       { revalidate: 60, tags: [DRIVER_OVERRIDES_TAG] },
     );
     return new Map(rows.map((row) => [row.driver_id, row]));

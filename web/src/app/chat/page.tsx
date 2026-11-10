@@ -5,16 +5,18 @@ import Chat from "@/components/chat/Chat";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getClientKey, getDailyLimit, peekChatLimit } from "@/lib/chat-limit";
 import { getSiteSettings } from "@/lib/cms/settings";
-import { getDictionary } from "@/lib/i18n/server";
+import { getDictionary, getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "AI-помічник" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getDictionary()).meta.chat };
+}
 
 export default async function ChatPage() {
-  const [settings, user, requestHeaders, dict] = await Promise.all([
+  const [settings, user, requestHeaders, { locale, t: dict }] = await Promise.all([
     getSiteSettings(),
     getCurrentUser(),
     headers(),
-    getDictionary(),
+    getI18n(),
   ]);
 
   // Скільки питань лишилось на сьогодні (без витрачання)
@@ -30,7 +32,8 @@ export default async function ChatPage() {
         description={dict.pages.chatDescription}
       />
       <Chat
-        quickQuestions={settings.chat_quick_questions}
+        // Швидкі питання з CMS написані українською; для англійської беремо словник
+        quickQuestions={locale === "uk" ? settings.chat_quick_questions : dict.chat.quickQuestions}
         limit={limit}
         initialRemaining={remaining}
         isGuest={!user}

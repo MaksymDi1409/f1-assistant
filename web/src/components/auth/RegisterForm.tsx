@@ -2,17 +2,24 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
+import { useI18n } from "@/components/i18n/I18nProvider";
 import { registerAction } from "@/lib/auth/actions";
 import FormField from "./FormField";
 
 export default function RegisterForm() {
   const [state, formAction, isPending] = useActionState(registerAction, undefined);
+  const { t } = useI18n();
 
   return (
     <form action={formAction} className="space-y-4">
-      <FormField label="Ім'я" name="firstName" autoComplete="given-name" />
-      <FormField label="Email" name="email" type="email" autoComplete="email" />
-      <FormField label="Пароль (мінімум 8 символів)" name="password" type="password" autoComplete="new-password" />
+      <FormField label={t.auth.firstName} name="firstName" autoComplete="given-name" />
+      <FormField label={t.auth.email} name="email" type="email" autoComplete="email" />
+      <FormField
+        label={t.auth.passwordNew}
+        name="password"
+        type="password"
+        autoComplete="new-password"
+      />
 
       {state?.error && <p className="text-sm text-red-400">{state.error}</p>}
 
@@ -21,13 +28,13 @@ export default function RegisterForm() {
         disabled={isPending}
         className="w-full rounded-lg bg-accent px-4 py-2.5 font-medium text-on-accent disabled:opacity-50"
       >
-        {isPending ? "Реєстрація…" : "Зареєструватися"}
+        {isPending ? t.auth.registering : t.auth.register}
       </button>
 
       <p className="text-center text-sm text-muted">
-        Вже маєш акаунт?{" "}
+        {t.auth.haveAccount}{" "}
         <Link href="/login" className="text-accent hover:underline">
-          Увійти
+          {t.auth.login}
         </Link>
       </p>
     </form>

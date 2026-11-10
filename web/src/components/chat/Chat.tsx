@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useI18n } from "@/components/i18n/I18nProvider";
 import { useLiveSettings } from "@/components/live/LiveSettingsProvider";
+import { fmt } from "@/lib/i18n/format";
 import { readChatStream } from "@/lib/chat-stream";
 import ChatMessageView from "./ChatMessageView";
 import type { UIMessage } from "./types";
@@ -16,6 +18,8 @@ type ChatProps = {
 
 export default function Chat({ quickQuestions, limit, initialRemaining, isGuest }: ChatProps) {
   const { settings: live } = useLiveSettings();
+  const { t: dict } = useI18n();
+  const t = dict.chat;
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [remaining, setRemaining] = useState(initialRemaining);
   const [input, setInput] = useState("");
@@ -81,7 +85,7 @@ export default function Chat({ quickQuestions, limit, initialRemaining, isGuest 
         if (res.status === 429) setRemaining(0);
         updateMessage(assistantId, (m) => ({
           ...m,
-          error: data?.error ?? "Чат зараз недоступний",
+          error: data?.error ?? t.errors.unavailable,
         }));
         return;
       }
@@ -108,7 +112,7 @@ export default function Chat({ quickQuestions, limit, initialRemaining, isGuest 
       if (!controller.signal.aborted) {
         updateMessage(assistantId, (m) => ({
           ...m,
-          error: "Не вдалося з'єднатися з сервером",
+          error: t.errors.connection,
         }));
       }
     } finally {
@@ -128,7 +132,7 @@ export default function Chat({ quickQuestions, limit, initialRemaining, isGuest 
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
             <p className="text-muted">
-              Спитай про гонки, пілотів, таблиці чи історію Формули 1
+              {t.emptyPrompt}
             </p>
             <div className="flex flex-wrap justify-center gap-2">
               {quickQuestions.map((q) => (
@@ -161,10 +165,10 @@ export default function Chat({ quickQuestions, limit, initialRemaining, isGuest 
           onChange={(e) => setInput(e.target.value)}
           placeholder={
             isClosedForGuests
-              ? "Чат для гостей тимчасово вимкнено"
+              ? t.placeholderClosed
               : isLimitReached
-                ? "Ліміт питань на сьогодні вичерпано"
-                : "Напиши питання…"
+                ? t.placeholderLimit
+                : t.placeholder
           }
           maxLength={2000}
           disabled={isBlocked}
@@ -176,7 +180,7 @@ export default function Chat({ quickQuestions, limit, initialRemaining, isGuest 
             onClick={() => abortRef.current?.abort()}
             className="rounded-lg bg-subtle-strong px-4 py-2 text-sm hover:bg-line-strong"
           >
-            Стоп
+            {t.stop}
           </button>
         ) : (
           <button
@@ -184,31 +188,31 @@ export default function Chat({ quickQuestions, limit, initialRemaining, isGuest 
             disabled={!input.trim() || isBlocked}
             className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent disabled:opacity-40"
           >
-            Надіслати
+            {t.send}
           </button>
         )}
       </form>
 
       {isClosedForGuests && (
         <p className="px-3 pb-3 text-xs text-muted">
-          Адміністратор тимчасово вимкнув чат для гостей.{" "}
+          {t.closedForGuests}{" "}
           <Link href="/login?next=/chat" className="text-accent hover:underline">
-            Увійди
+            {t.login}
           </Link>
-          , щоб продовжити.
+          {t.toContinue}
         </p>
       )}
 
       {!isClosedForGuests && limit !== null && remaining !== null && (
         <p className="px-3 pb-3 text-xs text-muted">
-          Залишилось питань сьогодні: {remaining} з {limit}
+          {fmt(t.remaining, { remaining, limit })}
           {isGuest && (
             <>
               {" · "}
               <Link href="/register" className="text-accent hover:underline">
-                Зареєструйся
+                {t.register}
               </Link>
-              , щоб отримати більше
+              {t.toGetMore}
             </>
           )}
         </p>

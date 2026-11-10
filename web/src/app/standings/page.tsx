@@ -4,7 +4,9 @@ import StandingsView from "@/components/StandingsView";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getDictionary } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Таблиця" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getDictionary()).meta.standings };
+}
 
 export default async function StandingsPage() {
   const [user, dict] = await Promise.all([getCurrentUser(), getDictionary()]);

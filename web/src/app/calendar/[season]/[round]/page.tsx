@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import { getRace, getRaceResults } from "@/lib/f1/jolpica";
 import { formatSession, toDate } from "@/lib/f1/format";
 import type { Race, Session } from "@/lib/f1/types";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
+import { fmt } from "@/lib/i18n/format";
+import { getI18n } from "@/lib/i18n/server";
 
 type Props = PageProps<"/calendar/[season]/[round]">;
 
@@ -26,15 +29,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: `${race.raceName} ${race.season}` };
 }
 
-function getSessions(race: Race) {
+function getSessions(race: Race, names: Dictionary["race"]["sessions"]) {
   const sessions: { name: string; session?: Session }[] = [
-    { name: "Тренування 1", session: race.FirstPractice },
-    { name: "Тренування 2", session: race.SecondPractice },
-    { name: "Тренування 3", session: race.ThirdPractice },
-    { name: "Спринт-кваліфікація", session: race.SprintQualifying },
-    { name: "Спринт", session: race.Sprint },
-    { name: "Кваліфікація", session: race.Qualifying },
-    { name: "Гонка", session: { date: race.date, time: race.time } },
+    { name: names.fp1, session: race.FirstPractice },
+    { name: names.fp2, session: race.SecondPractice },
+    { name: names.fp3, session: race.ThirdPractice },
+    { name: names.sprintQualifying, session: race.SprintQualifying },
+    { name: names.sprint, session: race.Sprint },
+    { name: names.qualifying, session: race.Qualifying },
+    { name: names.race, session: { date: race.date, time: race.time } },
   ];
 
   return sessions
@@ -47,8 +50,8 @@ function getSessions(race: Race) {
 }
 
 export default async function RacePage({ params }: Props) {
-  const race = await loadRace(params);
-  const sessions = getSessions(race);
+  const [race, { locale, t }] = await Promise.all([loadRace(params), getI18n()]);
+  const sessions = getSessions(race, t.race.sessions);
 
   const isFinished = toDate(race.date, race.time).getTime() < Date.now();
   const results = isFinished
@@ -62,13 +65,13 @@ export default async function RacePage({ params }: Props) {
   return (
     <>
       <Link href="/calendar" className="text-sm text-muted hover:text-foreground">
-        ← Календар
+        {t.race.back}
       </Link>
 
       <div className="mb-8 mt-4">
         <p className="text-sm text-muted">
-          Сезон {race.season} · Етап {race.round}
-          {race.Sprint && " · Спринт-уїкенд"}
+          {fmt(t.race.seasonRound, { season: race.season, round: race.round })}
+          {race.Sprint && t.race.sprintWeekend}
         </p>
         <h1 className="mt-1 text-3xl font-bold tracking-tight">{race.raceName}</h1>
         <p className="mt-2 text-muted">
@@ -79,22 +82,22 @@ export default async function RacePage({ params }: Props) {
       <div className="grid gap-8 lg:grid-cols-[1fr_2fr]">
         <aside className="space-y-6">
           <section className="rounded-xl border border-line bg-surface p-4">
-            <h2 className="mb-3 font-semibold">Розклад</h2>
+            <h2 className="mb-3 font-semibold">{t.race.schedule}</h2>
             <ul className="space-y-2 text-sm">
               {sessions.map(({ name, session }) => (
                 <li key={name} className="flex justify-between gap-4">
                   <span>{name}</span>
                   <span className="text-right text-muted">
-                    {formatSession(session)}
+                    {formatSession(session, locale)}
                   </span>
                 </li>
               ))}
             </ul>
-            <p className="mt-3 text-xs text-muted">Час київський</p>
+            <p className="mt-3 text-xs text-muted">{t.race.timezoneNote}</p>
           </section>
 
           <section className="rounded-xl border border-line bg-surface p-4">
-            <h2 className="mb-3 font-semibold">Траса</h2>
+            <h2 className="mb-3 font-semibold">{t.race.circuit}</h2>
             <p>{race.Circuit.circuitName}</p>
             <p className="text-sm text-muted">
               {locality}, {country}
@@ -105,18 +108,18 @@ export default async function RacePage({ params }: Props) {
               rel="noopener noreferrer"
               className="mt-3 inline-block text-sm text-accent hover:underline"
             >
-              Відкрити на мапі ↗
+              {t.race.openMap}
             </a>
           </section>
         </aside>
 
         <section>
-          <h2 className="mb-3 text-xl font-semibold">Результати</h2>
+          <h2 className="mb-3 text-xl font-semibold">{t.race.results}</h2>
 
-          {!isFinished && <p className="text-muted">Гонка ще не відбулася.</p>}
+          {!isFinished && <p className="text-muted">{t.race.notStarted}</p>}
 
           {isFinished && results.length === 0 && (
-            <p className="text-muted">Результати ще не опубліковані.</p>
+            <p className="text-muted">{t.race.notPublished}</p>
           )}
 
           {results.length > 0 && (
@@ -125,10 +128,10 @@ export default async function RacePage({ params }: Props) {
                 <thead className="text-left text-muted">
                   <tr>
                     <th className="w-10 py-2">#</th>
-                    <th>Пілот</th>
-                    <th className="hidden sm:table-cell">Команда</th>
-                    <th className="text-right">Час / статус</th>
-                    <th className="w-14 text-right">Очки</th>
+                    <th>{t.race.driver}</th>
+                    <th className="hidden sm:table-cell">{t.race.team}</th>
+                    <th className="text-right">{t.race.timeOrStatus}</th>
+                    <th className="w-14 text-right">{t.race.points}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -159,11 +162,14 @@ export default async function RacePage({ params }: Props) {
 
               {fastest?.FastestLap && (
                 <p className="mt-4 text-sm text-muted">
-                  Найшвидше коло:{" "}
+                  {t.race.fastestLap}{" "}
                   <span className="text-foreground">
                     {fastest.Driver.givenName} {fastest.Driver.familyName}
                   </span>{" "}
-                  — {fastest.FastestLap.Time.time} (коло {fastest.FastestLap.lap})
+                  {fmt(t.race.fastestLapDetail, {
+                    time: fastest.FastestLap.Time.time,
+                    lap: fastest.FastestLap.lap,
+                  })}
                 </p>
               )}
             </>

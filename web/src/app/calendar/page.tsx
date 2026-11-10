@@ -3,12 +3,15 @@ import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { getSchedule } from "@/lib/f1/jolpica";
 import { formatDayMonth, toDate } from "@/lib/f1/format";
-import { getDictionary } from "@/lib/i18n/server";
+import { fmt } from "@/lib/i18n/format";
+import { getDictionary, getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Календар" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getDictionary()).meta.calendar };
+}
 
 export default async function CalendarPage() {
-  const [races, dict] = await Promise.all([getSchedule(), getDictionary()]);
+  const [races, { locale, t: dict }] = await Promise.all([getSchedule(), getI18n()]);
   const now = Date.now();
   const nextRace = races.find((r) => toDate(r.date, r.time).getTime() > now);
 
@@ -16,7 +19,10 @@ export default async function CalendarPage() {
     <>
       <PageHeader
         title={dict.pages.calendarTitle}
-        description={dict.pages.calendarDescription(races[0]?.season ?? "", races.length)}
+        description={fmt(dict.pages.calendarDescription, {
+          season: races[0]?.season ?? "",
+          count: races.length,
+        })}
       />
 
       <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -36,11 +42,11 @@ export default async function CalendarPage() {
                 } ${isPast ? "opacity-50 hover:opacity-100" : ""}`}
               >
                 <div className="flex items-center justify-between text-xs text-muted">
-                  <span>Етап {race.round}</span>
+                  <span>{fmt(dict.calendar.round, { round: race.round })}</span>
                   {isNext && (
-                    <span className="font-semibold text-accent">Наступна</span>
+                    <span className="font-semibold text-accent">{dict.calendar.next}</span>
                   )}
-                  {isPast && <span>Завершено</span>}
+                  {isPast && <span>{dict.calendar.finished}</span>}
                 </div>
 
                 <h2 className="mt-1 font-semibold">{race.raceName}</h2>
@@ -49,10 +55,10 @@ export default async function CalendarPage() {
                 </p>
 
                 <div className="mt-3 flex items-center gap-2 text-sm">
-                  <span>{formatDayMonth(raceDate)}</span>
+                  <span>{formatDayMonth(raceDate, locale)}</span>
                   {race.Sprint && (
                     <span className="rounded bg-subtle-strong px-1.5 py-0.5 text-xs">
-                      Спринт
+                      {dict.calendar.sprint}
                     </span>
                   )}
                 </div>

@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useI18n } from "@/components/i18n/I18nProvider";
 import { useLiveSettings } from "./LiveSettingsProvider";
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
 export default function MaintenanceGate({ isAdmin, children }: Props) {
   const { settings } = useLiveSettings();
   const pathname = usePathname();
+  const { t } = useI18n();
 
   const isMaintenance = settings.maintenance_mode;
 
@@ -24,12 +26,12 @@ export default function MaintenanceGate({ isAdmin, children }: Props) {
         <p className="text-5xl" aria-hidden="true">
           🛠
         </p>
-        <h1 className="mt-4 text-3xl font-bold tracking-tight">Технічні роботи</h1>
+        <h1 className="mt-4 text-3xl font-bold tracking-tight">{t.live.maintenanceTitle}</h1>
         <p className="mt-2 text-muted">
-          Сайт тимчасово недоступний. Сторінка оновиться сама, щойно роботи завершаться.
+          {t.live.maintenanceText}
         </p>
         <Link href="/login" className="mt-6 inline-block text-sm text-muted hover:text-foreground">
-          Вхід для адміністратора
+          {t.live.adminLogin}
         </Link>
       </div>
     );
@@ -39,7 +41,7 @@ export default function MaintenanceGate({ isAdmin, children }: Props) {
     <>
       {isMaintenance && isAdmin && (
         <p className="mb-6 rounded-lg border border-amber-500/30 bg-amber-500/15 px-4 py-2 text-sm">
-          Увімкнено режим техробіт: відвідувачі бачать заглушку, а ти бачиш сайт як адмін.
+          {t.live.maintenanceAdminNotice}
         </p>
       )}
       {children}
