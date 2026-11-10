@@ -3,19 +3,20 @@ import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { getSchedule } from "@/lib/f1/jolpica";
 import { formatDayMonth, toDate } from "@/lib/f1/format";
+import { getDictionary } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Календар" };
 
 export default async function CalendarPage() {
-  const races = await getSchedule();
+  const [races, dict] = await Promise.all([getSchedule(), getDictionary()]);
   const now = Date.now();
   const nextRace = races.find((r) => toDate(r.date, r.time).getTime() > now);
 
   return (
     <>
       <PageHeader
-        title="Календар"
-        description={`Сезон ${races[0]?.season ?? ""} · ${races.length} етапів`}
+        title={dict.pages.calendarTitle}
+        description={dict.pages.calendarDescription(races[0]?.season ?? "", races.length)}
       />
 
       <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

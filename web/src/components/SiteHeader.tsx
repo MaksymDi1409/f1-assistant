@@ -3,34 +3,45 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { UserRole } from "@/lib/auth/session";
+import type { Locale } from "@/lib/i18n/config";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
 import type { Theme } from "@/lib/theme";
+import LanguageSwitcher from "./LanguageSwitcher";
 import ThemeSwitcher from "./ThemeSwitcher";
 
 type HeaderUser = { firstName: string | null; role: UserRole } | null;
-
-const navItems = [
-  { href: "/", label: "Головна" },
-  { href: "/chat", label: "AI-помічник" },
-  { href: "/calendar", label: "Календар" },
-  { href: "/standings", label: "Таблиця" },
-  { href: "/drivers", label: "Пілоти" },
-  { href: "/teams", label: "Команди" },
-  { href: "/news", label: "Новини" },
-];
 
 type SiteHeaderProps = {
   user: HeaderUser;
   theme: Theme;
   teamThemeAvailable: boolean;
+  locale: Locale;
+  labels: Dictionary["nav"]; // тексти меню потрібною мовою
 };
 
-export default function SiteHeader({ user, theme, teamThemeAvailable }: SiteHeaderProps) {
+export default function SiteHeader({
+  user,
+  theme,
+  teamThemeAvailable,
+  locale,
+  labels,
+}: SiteHeaderProps) {
   const pathname = usePathname();
+
+  const navItems = [
+    { href: "/", label: labels.home },
+    { href: "/chat", label: labels.chat },
+    { href: "/calendar", label: labels.calendar },
+    { href: "/standings", label: labels.standings },
+    { href: "/drivers", label: labels.drivers },
+    { href: "/teams", label: labels.teams },
+    { href: "/news", label: labels.news },
+  ];
 
   // Пункт «Адмін» бачить лише адміністратор. Це лише зручність:
   // доступ до самої сторінки /admin перевіряє сервер
   const items =
-    user?.role === "admin" ? [...navItems, { href: "/admin", label: "Адмін" }] : navItems;
+    user?.role === "admin" ? [...navItems, { href: "/admin", label: labels.admin }] : navItems;
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -59,13 +70,14 @@ export default function SiteHeader({ user, theme, teamThemeAvailable }: SiteHead
             ))}
           </nav>
 
+          <LanguageSwitcher locale={locale} />
           <ThemeSwitcher theme={theme} teamAvailable={teamThemeAvailable} />
 
           <Link
             href={user ? "/account" : "/login"}
             className="shrink-0 whitespace-nowrap rounded-md border border-line-strong px-3 py-1.5 text-sm hover:bg-subtle"
           >
-            {user ? (user.firstName ?? "Кабінет") : "Увійти"}
+            {user ? (user.firstName ?? labels.account) : labels.login}
           </Link>
         </div>
       </div>

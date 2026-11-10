@@ -7,14 +7,16 @@ import {
 } from "@/lib/f1/jolpica";
 import type { DriverStanding } from "@/lib/f1/types";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getDictionary } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Команди" };
 
 export default async function TeamsPage() {
-  const [constructors, drivers, user] = await Promise.all([
+  const [constructors, drivers, user, dict] = await Promise.all([
     getConstructorStandings(),
     getDriverStandings(),
     getCurrentUser(),
+    getDictionary(),
   ]);
 
   // Групуємо пілотів за їхньою поточною командою
@@ -27,7 +29,7 @@ export default async function TeamsPage() {
 
   return (
     <>
-      <PageHeader title="Команди" description="Команди та їхні пілоти" />
+      <PageHeader title={dict.pages.teamsTitle} description={dict.pages.teamsDescription} />
 
       {constructors.length === 0 ? (
         <p className="text-muted">Сезон ще не розпочався.</p>

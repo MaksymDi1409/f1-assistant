@@ -5,14 +5,16 @@ import Chat from "@/components/chat/Chat";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getClientKey, getDailyLimit, peekChatLimit } from "@/lib/chat-limit";
 import { getSiteSettings } from "@/lib/cms/settings";
+import { getDictionary } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "AI-помічник" };
 
 export default async function ChatPage() {
-  const [settings, user, requestHeaders] = await Promise.all([
+  const [settings, user, requestHeaders, dict] = await Promise.all([
     getSiteSettings(),
     getCurrentUser(),
     headers(),
+    getDictionary(),
   ]);
 
   // Скільки питань лишилось на сьогодні (без витрачання)
@@ -24,8 +26,8 @@ export default async function ChatPage() {
   return (
     <>
       <PageHeader
-        title="AI-помічник"
-        description="Запитай будь-що про Формулу 1"
+        title={dict.pages.chatTitle}
+        description={dict.pages.chatDescription}
       />
       <Chat
         quickQuestions={settings.chat_quick_questions}

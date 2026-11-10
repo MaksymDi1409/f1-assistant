@@ -8,6 +8,8 @@ import { LiveSettingsProvider } from "@/components/live/LiveSettingsProvider";
 import MaintenanceGate from "@/components/live/MaintenanceGate";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getSiteSettings } from "@/lib/cms/settings";
+import { getDictionaryFor } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/server";
 import { pickLiveSettings } from "@/lib/live-settings";
 import { hasTeamTheme, resolveTheme, THEME_COOKIE } from "@/lib/theme";
 import "./globals.css";
@@ -31,11 +33,13 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [user, settings, cookieStore] = await Promise.all([
+  const [user, settings, cookieStore, locale] = await Promise.all([
     getCurrentUser(),
     getSiteSettings(),
     cookies(),
+    getLocale(),
   ]);
+  const dict = getDictionaryFor(locale);
 
   // Пріоритет: вибір у цьому браузері → збережене в профілі → темна
   const { theme, accent, onAccent } = resolveTheme(
@@ -50,7 +54,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
 
   return (
     <html
-      lang="uk"
+      lang={locale}
       data-theme={theme}
       style={style}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
@@ -62,6 +66,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             user={user ? { firstName: user.firstName, role: user.role } : null}
             theme={theme}
             teamThemeAvailable={hasTeamTheme(user?.favoriteTeam ?? null)}
+            locale={locale}
+            labels={dict.nav}
           />
           <AnnouncementBanner />
           <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">

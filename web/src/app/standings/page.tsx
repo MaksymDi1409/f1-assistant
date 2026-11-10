@@ -2,17 +2,18 @@ import type { Metadata } from "next";
 import PageHeader from "@/components/PageHeader";
 import StandingsView from "@/components/StandingsView";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getDictionary } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Таблиця" };
 
 export default async function StandingsPage() {
-  const user = await getCurrentUser();
+  const [user, dict] = await Promise.all([getCurrentUser(), getDictionary()]);
 
   return (
     <>
       <PageHeader
-        title="Таблиця"
-        description="Особистий і командний залік поточного сезону"
+        title={dict.pages.standingsTitle}
+        description={dict.pages.standingsDescription}
       />
       <StandingsView
         season="current"

@@ -3,6 +3,8 @@ import Link from "next/link";
 import TrackReplay from "@/components/TrackReplay";
 import { getSiteSettings, type SiteSettings } from "@/lib/cms/settings";
 import { buildReplay, getLatestRaceSession } from "@/lib/f1/replay";
+import { getDictionaryFor } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/server";
 
 async function loadReplay(lap: number) {
   try {
@@ -47,7 +49,8 @@ function ReplaySkeleton() {
 }
 
 export default async function HomePage() {
-  const settings = await getSiteSettings();
+  const [settings, locale] = await Promise.all([getSiteSettings(), getLocale()]);
+  const dict = getDictionaryFor(locale);
 
   // Останнє слово заголовка виділяємо червоним: "F1 Assistant" → "F1 <Assistant>"
   const words = settings.hero_title.split(" ");
@@ -59,26 +62,29 @@ export default async function HomePage() {
         <h1 className="text-5xl font-bold tracking-tight">
           {words.join(" ")} <span className="text-accent">{lastWord}</span>
         </h1>
-        <p className="mt-4 text-lg text-muted">{settings.hero_subtitle}</p>
+        {/* Підзаголовок з CMS написаний українською; для англійської беремо словник */}
+        <p className="mt-4 text-lg text-muted">
+          {locale === "uk" ? settings.hero_subtitle : dict.home.subtitle}
+        </p>
         <div className="mt-6 flex justify-center gap-3">
           <Link
             href="/chat"
             className="rounded-lg bg-accent px-5 py-2.5 font-medium text-on-accent hover:bg-accent/90"
           >
-            Запитати AI
+            {dict.home.askAi}
           </Link>
           <Link
             href="/calendar"
             className="rounded-lg border border-line-strong px-5 py-2.5 font-medium hover:bg-subtle"
           >
-            Календар
+            {dict.home.calendar}
           </Link>
         </div>
       </section>
 
       {settings.replay_enabled && (
         <section>
-          <h2 className="mb-1 text-xl font-semibold">Повтор кола</h2>
+          <h2 className="mb-1 text-xl font-semibold">{dict.home.replayTitle}</h2>
           <Suspense fallback={<ReplaySkeleton />}>
             <HomeReplay settings={settings} />
           </Suspense>

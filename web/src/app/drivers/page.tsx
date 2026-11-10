@@ -4,6 +4,7 @@ import PageHeader from "@/components/PageHeader";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getDriverOverrides } from "@/lib/cms/driver-overrides";
 import { getDriverStandings } from "@/lib/f1/jolpica";
+import { getDictionary } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Пілоти" };
 
@@ -14,10 +15,11 @@ export default async function DriversPage() {
     getCurrentUser(),
     getDriverOverrides(),
   ]);
+  const dict = await getDictionary();
 
   return (
     <>
-      <PageHeader title="Пілоти" description="Усі пілоти поточного сезону" />
+      <PageHeader title={dict.pages.driversTitle} description={dict.pages.driversDescription} />
 
       {standings.length === 0 ? (
         <p className="text-muted">Сезон ще не розпочався.</p>

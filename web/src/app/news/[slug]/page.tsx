@@ -3,21 +3,30 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import CategoryBadge from "@/components/news/CategoryBadge";
-import { assetUrl, getArticleBySlug, type Article } from "@/lib/cms/directus";
+import TranslateArticleButton from "@/components/news/TranslateArticleButton";
+import { getCurrentUser } from "@/lib/auth/session";
+import {
+  assetUrl,
+  getArticleBySlug,
+  localizeArticle,
+  type LocalizedArticle,
+} from "@/lib/cms/directus";
 import { formatDate } from "@/lib/f1/format";
+import { getDictionaryFor } from "@/lib/i18n/dictionaries";
+import { getLocale } from "@/lib/i18n/server";
 
 type Props = PageProps<"/news/[slug]">;
 
-async function loadArticle(params: Props["params"]): Promise<Article> {
+async function loadArticle(params: Props["params"]): Promise<LocalizedArticle> {
   const { slug } = await params;
 
   // Slug у Directus: малі латинські літери, цифри та дефіси
   if (!/^[a-z0-9-]+$/.test(slug)) notFound();
 
-  const article = await getArticleBySlug(slug);
+  const [article, locale] = await Promise.all([getArticleBySlug(slug), getLocale()]);
   if (!article) notFound();
 
-  return article;
+  return localizeArticle(article, locale);
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -38,22 +47,55 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ArticlePage({ params }: Props) {
-  const article = await loadArticle(params);
+  const [article, locale, user] = await Promise.all([
+    loadArticle(params),
+    getLocale(),
+    getCurrentUser(),
+  ]);
+  const t = getDictionaryFor(locale).news;
+
+  // Автопереклад доступний редактору й адміну
+  const canTranslate = user?.role === "editor" || user?.role === "admin";
 
   return (
     <article className="mx-auto max-w-3xl">
       <Link href="/news" className="text-sm text-muted hover:text-foreground">
-        ← Новини
+        {t.back}
       </Link>
 
       <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-muted">
         {article.category && <CategoryBadge category={article.category} asLink />}
-        <span>{formatDate(article.published_at ?? article.date_created)}</span>
-        {article.user_created?.first_name && <span>· Автор: {article.user_created.first_name}</span>}
+        <span>{formatDate(article.published_at ?? article.date_created, locale)}</span>
+        {article.user_created?.first_name && (
+          <span>
+            · {t.author}: {article.user_created.first_name}
+          </span>
+        )}
       </div>
-      <h1 className="mt-1 text-4xl font-bold tracking-tight">{article.title}</h1>
-      {article.summary && (
-        <p className="mt-3 text-lg text-muted">{article.summary}</p>
+
+      <h1 className="mt-2 text-4xl font-bold tracking-tight">{article.title}</h1>
+      {article.summary && <p className="mt-3 text-lg text-muted">{article.summary}</p>}
+
+      {/* Англійська версія: чесно позначаємо машинний переклад або його відсутність */}
+      {locale === "en" && (
+        <p className="mt-4 rounded-lg border border-line bg-subtle px-3 py-2 text-xs text-muted">
+          {article.isTranslated ? `🌐 ${t.machineTranslated}` : t.notTranslated}
+        </p>
+      )}
+
+      {canTranslate && (
+        <div className="mt-4">
+          <TranslateArticleButton
+            articleId={article.id}
+            hasTranslation={Boolean(article.title_en)}
+            labels={{
+              translate: t.translate,
+              retranslate: t.retranslate,
+              translating: t.translating,
+              translated: t.translated,
+            }}
+          />
+        </div>
       )}
 
       {article.cover && (
