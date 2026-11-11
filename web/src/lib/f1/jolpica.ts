@@ -1,4 +1,5 @@
 import type {
+  Constructor,
   ConstructorStanding,
   Driver,
   DriverStanding,
@@ -130,4 +131,37 @@ export async function getRaceWithResults(
 
   const race = data.RaceTable.Races[0];
   return race ? { race, results: race.Results } : null;
+}
+
+// ---------- Команди ----------
+
+export async function getConstructor(constructorId: string): Promise<Constructor | null> {
+  const data = await jolpicaFetch<{ ConstructorTable: { Constructors: Constructor[] } }>(
+    `/constructors/${constructorId}.json`,
+  );
+  return data.ConstructorTable.Constructors[0] ?? null;
+}
+
+// Результати обох пілотів команди в кожній гонці сезону
+export async function getConstructorSeasonResults(
+  constructorId: string,
+  season = "current",
+): Promise<{ race: Race; results: RaceResult[] }[]> {
+  const data = await jolpicaFetch<{
+    RaceTable: { Races: (Race & { Results: RaceResult[] })[] };
+  }>(`/${season}/constructors/${constructorId}/results.json?limit=100`);
+
+  return data.RaceTable.Races.map(({ Results, ...race }) => ({ race, results: Results }));
+}
+
+export async function getConstructorCareerStats(constructorId: string) {
+  const [seasons, wins, seconds, thirds] = await Promise.all([
+    getTotal(`/constructors/${constructorId}/seasons.json`),
+    getTotal(`/constructors/${constructorId}/results/1.json`),
+    getTotal(`/constructors/${constructorId}/results/2.json`),
+    getTotal(`/constructors/${constructorId}/results/3.json`),
+  ]);
+
+  // Подіуми рахуються по фінішах: два пілоти команди на подіумі = 2
+  return { seasons, wins, podiums: wins + seconds + thirds };
 }

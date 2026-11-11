@@ -1,0 +1,1008 @@
+diff --git a/web/scripts/fetch-champions.mjs b/web/scripts/fetch-champions.mjs
+index 0d05469..0c6dfe1 100644
+--- a/web/scripts/fetch-champions.mjs
++++ b/web/scripts/fetch-champions.mjs
+@@ -1,40 +1,53 @@
+-// Завантажує чемпіонів світу з Jolpica і зберігає у src/data/champions.json
++// Завантажує чемпіонів світу з Jolpica і зберігає у src/data/:
++// champions.json — пілоти, constructor-champions.json — команди (Кубок конструкторів з 1958)
+ // Запуск: npm run data:champions (раз на рік, після завершення сезону)
+ 
+ import { mkdir, writeFile } from "node:fs/promises";
+ 
+ const BASE_URL = "https://api.jolpi.ca/ergast/f1";
+ const FIRST_SEASON = 1950;
++const FIRST_CONSTRUCTORS_SEASON = 1958;
+ // Останній сезон можна вказати вручну, якщо чемпіон визначився достроково:
+ // npm run data:champions -- 2026
+ const LAST_SEASON = Number(process.argv[2]) || new Date().getFullYear() - 1;
+ 
+ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+ 
+-async function fetchChampion(season, attempt = 1) {
+-  const res = await fetch(`${BASE_URL}/${season}/driverStandings/1.json`);
++// type: "driver" або "constructor"
++async function fetchChampion(season, type, attempt = 1) {
++  const res = await fetch(`${BASE_URL}/${season}/${type}Standings/1.json`);
+ 
+   if (res.status === 429 && attempt < 5) {
+     await sleep(2000 * attempt);
+-    return fetchChampion(season, attempt + 1);
++    return fetchChampion(season, type, attempt + 1);
+   }
+   if (!res.ok) {
+-    throw new Error(`HTTP ${res.status} for season ${season}`);
++    throw new Error(`HTTP ${res.status} for ${type} ${season}`);
+   }
+ 
+   const json = await res.json();
+-  const standing = json.MRData.StandingsTable.StandingsLists[0]?.DriverStandings[0];
+-  return standing?.Driver.driverId ?? null;
++  const list = json.MRData.StandingsTable.StandingsLists[0];
++  return type === "driver"
++    ? (list?.DriverStandings[0]?.Driver.driverId ?? null)
++    : (list?.ConstructorStandings[0]?.Constructor.constructorId ?? null);
+ }
+ 
+ const champions = {};
++const constructorChampions = {};
+ 
+ for (let season = FIRST_SEASON; season <= LAST_SEASON; season++) {
+-  const driverId = await fetchChampion(season);
++  const driverId = await fetchChampion(season, "driver");
+   if (driverId) champions[season] = driverId;
+-  console.log(`${season}: ${driverId ?? "—"}`);
+-
+   await sleep(400); // не більше ~2.5 запиту на секунду, щоб не впертись у ліміт
++
++  let constructorId = null;
++  if (season >= FIRST_CONSTRUCTORS_SEASON) {
++    constructorId = await fetchChampion(season, "constructor");
++    if (constructorId) constructorChampions[season] = constructorId;
++    await sleep(400);
++  }
++
++  console.log(`${season}: ${driverId ?? "—"} / ${constructorId ?? "—"}`);
+ }
+ 
+ const dataDir = new URL("../src/data/", import.meta.url);
+@@ -44,4 +57,12 @@ await writeFile(
+   JSON.stringify(champions, null, 2) + "\n",
+ );
+ 
+-console.log(`Збережено ${Object.keys(champions).length} сезонів`);
+\ No newline at end of file
++await writeFile(
++  new URL("constructor-champions.json", dataDir),
++  JSON.stringify(constructorChampions, null, 2) + "\n",
++);
++
++console.log(
++  `Збережено: пілоти — ${Object.keys(champions).length} сезонів, ` +
++    `команди — ${Object.keys(constructorChampions).length}`,
++);
+\ No newline at end of file
+diff --git a/web/src/app/calendar/[season]/[round]/page.tsx b/web/src/app/calendar/[season]/[round]/page.tsx
+index c1f154d..835fe34 100644
+--- a/web/src/app/calendar/[season]/[round]/page.tsx
++++ b/web/src/app/calendar/[season]/[round]/page.tsx
+@@ -1,6 +1,8 @@
+ import type { Metadata } from "next";
+ import Link from "next/link";
+ import { notFound } from "next/navigation";
++import { Suspense } from "react";
++import TrackMap, { TrackMapSkeleton } from "@/components/TrackMap";
+ import { getRace, getRaceResults } from "@/lib/f1/jolpica";
+ import { formatSession, toDate } from "@/lib/f1/format";
+ import type { Race, Session } from "@/lib/f1/types";
+@@ -111,6 +113,14 @@ export default async function RacePage({ params }: Props) {
+               {t.race.openMap}
+             </a>
+           </section>
++
++          {/* Схема траси вантажиться окремо: решта сторінки не чекає на OpenF1 */}
++          <section className="rounded-xl border border-line bg-surface p-4">
++            <h2 className="mb-3 font-semibold">{t.race.trackTitle}</h2>
++            <Suspense fallback={<TrackMapSkeleton />}>
++              <TrackMap race={race} />
++            </Suspense>
++          </section>
+         </aside>
+ 
+         <section>
+@@ -147,7 +157,12 @@ export default async function RacePage({ params }: Props) {
+                         </Link>
+                       </td>
+                       <td className="hidden text-muted sm:table-cell">
+-                        {r.Constructor.name}
++                        <Link
++                          href={`/teams/${r.Constructor.constructorId}`}
++                          className="hover:text-accent"
++                        >
++                          {r.Constructor.name}
++                        </Link>
+                       </td>
+                       <td className="text-right tabular-nums text-muted">
+                         {r.Time?.time ?? r.status}
+diff --git a/web/src/app/calendar/page.tsx b/web/src/app/calendar/page.tsx
+index ba4edef..45f9602 100644
+--- a/web/src/app/calendar/page.tsx
++++ b/web/src/app/calendar/page.tsx
+@@ -2,7 +2,7 @@ import type { Metadata } from "next";
+ import Link from "next/link";
+ import PageHeader from "@/components/PageHeader";
+ import { getSchedule } from "@/lib/f1/jolpica";
+-import { formatDayMonth, toDate } from "@/lib/f1/format";
++import { formatDateRange, getWeekendStart, toDate } from "@/lib/f1/format";
+ import { fmt } from "@/lib/i18n/format";
+ import { getDictionary, getI18n } from "@/lib/i18n/server";
+ 
+@@ -55,7 +55,7 @@ export default async function CalendarPage() {
+                 </p>
+ 
+                 <div className="mt-3 flex items-center gap-2 text-sm">
+-                  <span>{formatDayMonth(raceDate, locale)}</span>
++                  <span>{formatDateRange(getWeekendStart(race), raceDate, locale)}</span>
+                   {race.Sprint && (
+                     <span className="rounded bg-subtle-strong px-1.5 py-0.5 text-xs">
+                       {dict.calendar.sprint}
+diff --git a/web/src/app/drivers/[driverId]/page.tsx b/web/src/app/drivers/[driverId]/page.tsx
+index d78730f..2aa674b 100644
+--- a/web/src/app/drivers/[driverId]/page.tsx
++++ b/web/src/app/drivers/[driverId]/page.tsx
+@@ -64,6 +64,7 @@ export default async function DriverPage({ params }: Props) {
+ 
+   // Злиття даних: API — основа, виправлення адміна з CMS мають пріоритет
+   const apiTeam = seasonResults.at(-1)?.result.Constructor.name ?? null;
++  const teamId = seasonResults.at(-1)?.result.Constructor.constructorId ?? null;
+   const team = override?.team_name ?? apiTeam;
+   const number = override?.permanent_number ?? driver.permanentNumber ?? null;
+   const isAdmin = user?.role === "admin";
+@@ -99,9 +100,16 @@ export default async function DriverPage({ params }: Props) {
+           <p className="text-muted">{driver.givenName}</p>
+           <h1 className="text-4xl font-bold tracking-tight">{driver.familyName}</h1>
+           <p className="mt-1 text-sm text-muted">
+-            {[team, driver.nationality, plural(t.age, getAge(driver.dateOfBirth), locale)]
+-              .filter(Boolean)
+-              .join(" · ")}
++            {team &&
++              (teamId ? (
++                <Link href={`/teams/${teamId}`} className="hover:text-accent">
++                  {team}
++                </Link>
++              ) : (
++                team
++              ))}
++            {team && " · "}
++            {[driver.nationality, plural(t.age, getAge(driver.dateOfBirth), locale)].join(" · ")}
+           </p>
+ 
+           {/* Поза абзацом <p>: блоки й форми всередині <p> заборонені в HTML */}
+diff --git a/web/src/app/teams/[constructorId]/page.tsx b/web/src/app/teams/[constructorId]/page.tsx
+new file mode 100644
+index 0000000..64a3aca
+--- /dev/null
++++ b/web/src/app/teams/[constructorId]/page.tsx
+@@ -0,0 +1,240 @@
++import type { Metadata } from "next";
++import Link from "next/link";
++import { notFound } from "next/navigation";
++import ReactMarkdown from "react-markdown";
++import { getCurrentUser } from "@/lib/auth/session";
++import { getTeamDetails } from "@/lib/cms/team-details";
++import { getConstructorTitleSeasons, hasConstructorChampionsData } from "@/lib/f1/champions";
++import {
++  getConstructor,
++  getConstructorCareerStats,
++  getConstructorSeasonResults,
++  getConstructorStandings,
++  getDriverStandings,
++} from "@/lib/f1/jolpica";
++import type { Constructor } from "@/lib/f1/types";
++import { getI18n } from "@/lib/i18n/server";
++
++type Props = PageProps<"/teams/[constructorId]">;
++
++const DIRECTUS_PUBLIC_URL = process.env.NEXT_PUBLIC_DIRECTUS_URL ?? "http://localhost:8055";
++
++async function loadTeam(params: Props["params"]): Promise<Constructor> {
++  const { constructorId } = await params;
++
++  // constructorId у Jolpica: малі латинські літери, цифри та "_" (red_bull)
++  if (!/^[a-z0-9_]+$/.test(constructorId)) notFound();
++
++  const team = await getConstructor(constructorId);
++  if (!team) notFound();
++
++  return team;
++}
++
++export async function generateMetadata({ params }: Props): Promise<Metadata> {
++  const team = await loadTeam(params);
++  return { title: team.name };
++}
++
++function StatCard({ label, value }: { label: string; value: string | number }) {
++  return (
++    <div className="rounded-xl border border-line bg-surface p-4">
++      <p className="text-xs text-muted">{label}</p>
++      <p className="mt-1 text-2xl font-bold tabular-nums">{value}</p>
++    </div>
++  );
++}
++
++export default async function TeamPage({ params }: Props) {
++  const team = await loadTeam(params);
++  const id = team.constructorId;
++
++  const [seasonResults, career, constructors, drivers, user, details, { locale, t: dict }] =
++    await Promise.all([
++      getConstructorSeasonResults(id).catch(() => []),
++      getConstructorCareerStats(id).catch(() => null),
++      getConstructorStandings(),
++      getDriverStandings(),
++      getCurrentUser(),
++      getTeamDetails(id),
++      getI18n(),
++    ]);
++  const t = dict.team;
++
++  const standing = constructors.find((c) => c.Constructor.constructorId === id);
++  const teamDrivers = drivers.filter((d) => d.Constructors.at(-1)?.constructorId === id);
++  const titleSeasons = getConstructorTitleSeasons(id);
++  const isFavorite = user?.favoriteTeam === id;
++  const canEdit = user?.role === "admin" || user?.role === "editor";
++  const description =
++    (locale === "en" ? details?.description_en : null) ?? details?.description ?? null;
++
++  const facts = [
++    { label: t.principal, value: details?.team_principal },
++    { label: t.technicalDirector, value: details?.technical_director },
++    { label: t.base, value: details?.base },
++    { label: t.chassis, value: details?.chassis },
++    { label: t.powerUnit, value: details?.power_unit },
++    { label: t.firstEntry, value: details?.first_entry },
++  ].filter((f) => f.value);
++
++  return (
++    <>
++      <Link href="/teams" className="text-sm text-muted hover:text-foreground">
++        {t.back}
++      </Link>
++
++      <div className="mb-8 mt-4">
++        <p className="text-sm text-muted">
++          {standing ? `P${standing.positionText} · ` : ""}
++          {team.nationality}
++          {isFavorite && <span className="ml-1.5 text-accent">{dict.teams.favorite}</span>}
++        </p>
++        <h1 className="mt-1 text-4xl font-bold tracking-tight">{team.name}</h1>
++        {details?.full_name && <p className="mt-1 text-muted">{details.full_name}</p>}
++      </div>
++
++      <div className="mb-8 max-w-xl">
++        <section className="rounded-xl border border-line bg-surface p-4">
++          <h2 className="mb-3 font-semibold">{t.facts}</h2>
++          {facts.length > 0 ? (
++            <dl className="space-y-2 text-sm">
++              {facts.map((f) => (
++                <div key={f.label} className="flex justify-between gap-4">
++                  <dt className="text-muted">{f.label}</dt>
++                  <dd className="text-right">{f.value}</dd>
++                </div>
++              ))}
++            </dl>
++          ) : (
++            <p className="text-sm text-muted">{t.noFacts}</p>
++          )}
++
++          {teamDrivers.length > 0 && (
++            <>
++              <h3 className="mb-2 mt-4 text-sm text-muted">{t.drivers}</h3>
++              <ul className="flex flex-wrap gap-2">
++                {teamDrivers.map((d) => (
++                  <li key={d.Driver.driverId}>
++                    <Link
++                      href={`/drivers/${d.Driver.driverId}`}
++                      className="inline-block rounded-md bg-subtle px-2.5 py-1 text-sm hover:bg-subtle-strong"
++                    >
++                      {d.Driver.givenName} {d.Driver.familyName}
++                    </Link>
++                  </li>
++                ))}
++              </ul>
++            </>
++          )}
++
++          {/* Редагування — у Directus: там уже є зручна форма й перевірка прав */}
++          {canEdit && (
++            <a
++              href={`${DIRECTUS_PUBLIC_URL}/admin/content/team_details/${details ? details.id : "+"}`}
++              target="_blank"
++              rel="noopener noreferrer"
++              className="mt-4 inline-block rounded-lg border border-dashed border-line-strong px-3 py-1.5 text-sm text-muted hover:bg-subtle hover:text-foreground"
++            >
++              {details ? t.editInCms : t.createInCms}
++            </a>
++          )}
++        </section>
++      </div>
++
++      {description && (
++        <section className="mb-8 max-w-3xl">
++          <h2 className="mb-3 text-xl font-semibold">{t.about}</h2>
++          <div className="article-content text-sm">
++            <ReactMarkdown>{description}</ReactMarkdown>
++          </div>
++        </section>
++      )}
++
++      <h2 className="mb-3 text-xl font-semibold">{t.currentSeason}</h2>
++      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
++        <StatCard label={t.position} value={standing ? `P${standing.positionText}` : "—"} />
++        <StatCard label={t.points} value={standing?.points ?? 0} />
++        <StatCard label={t.wins} value={standing?.wins ?? 0} />
++      </div>
++
++      <h2 className="mb-3 text-xl font-semibold">{t.history}</h2>
++      <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
++        <StatCard label={t.seasons} value={career?.seasons ?? "—"} />
++        <StatCard label={t.wins} value={career?.wins ?? "—"} />
++        <StatCard label={t.podiums} value={career?.podiums ?? "—"} />
++        <StatCard
++          label={t.titles}
++          value={hasConstructorChampionsData ? titleSeasons.length : "—"}
++        />
++      </div>
++
++      {titleSeasons.length > 0 ? (
++        <p className="mb-8 text-sm text-muted">
++          {t.champion}{" "}
++          {titleSeasons.map((season, i) => (
++            <span key={season}>
++              {i > 0 && ", "}
++              <Link
++                href={`/standings/${season}`}
++                className="text-foreground underline decoration-line-strong underline-offset-4 hover:text-accent hover:decoration-accent"
++              >
++                {season}
++              </Link>
++            </span>
++          ))}
++        </p>
++      ) : (
++        <div className="mb-8" />
++      )}
++
++      {seasonResults.length > 0 && (
++        <>
++          <h2 className="mb-3 text-xl font-semibold">{t.seasonResults}</h2>
++          <table className="w-full text-sm">
++            <thead className="text-left text-muted">
++              <tr>
++                <th className="w-12 py-2">{t.round}</th>
++                <th>{t.race}</th>
++                <th className="text-right">{t.finishes}</th>
++                <th className="w-14 text-right">{t.points}</th>
++              </tr>
++            </thead>
++            <tbody>
++              {seasonResults.map(({ race, results }) => (
++                <tr key={race.round} className="border-t border-line">
++                  <td className="py-2 text-muted">{race.round}</td>
++                  <td>
++                    <Link
++                      href={`/calendar/${race.season}/${race.round}`}
++                      className="hover:text-accent"
++                    >
++                      {race.raceName}
++                    </Link>
++                  </td>
++                  <td className="text-right tabular-nums text-muted">
++                    {results
++                      .map((r) => `${r.Driver.code ?? r.Driver.familyName} ${r.positionText}`)
++                      .join(" · ")}
++                  </td>
++                  <td className="text-right font-semibold tabular-nums">
++                    {results.reduce((sum, r) => sum + Number(r.points), 0)}
++                  </td>
++                </tr>
++              ))}
++            </tbody>
++          </table>
++        </>
++      )}
++
++      <a
++        href={team.url}
++        target="_blank"
++        rel="noopener noreferrer"
++        className="mt-8 inline-block text-sm text-accent hover:underline"
++      >
++        {t.wikipedia}
++      </a>
++    </>
++  );
++}
+diff --git a/web/src/app/teams/page.tsx b/web/src/app/teams/page.tsx
+index 2d7915c..c92ce77 100644
+--- a/web/src/app/teams/page.tsx
++++ b/web/src/app/teams/page.tsx
+@@ -41,7 +41,9 @@ export default async function TeamsPage() {
+           {constructors.map((c) => (
+             <li
+               key={c.Constructor.constructorId}
+-              className={`rounded-xl border bg-surface p-4 ${
++              // relative + розтягнуте посилання (after:inset-0) — клікабельна вся картка.
++              // Вкладати <a> в <a> заборонено, тому чипи пілотів лежать шаром вище (z-10)
++              className={`group relative rounded-xl border bg-surface p-4 transition-colors hover:border-accent/60 ${
+                 c.Constructor.constructorId === user?.favoriteTeam
+                   ? "border-accent"
+                   : "border-line"
+@@ -50,7 +52,14 @@ export default async function TeamsPage() {
+               <div className="flex items-start justify-between">
+                 <div>
+                   <p className="text-xs text-muted">P{c.positionText}</p>
+-                  <h2 className="text-xl font-bold">{c.Constructor.name}</h2>
++                  <h2 className="text-xl font-bold">
++                    <Link
++                      href={`/teams/${c.Constructor.constructorId}`}
++                      className="after:absolute after:inset-0 after:rounded-xl group-hover:text-accent"
++                    >
++                      {c.Constructor.name}
++                    </Link>
++                  </h2>
+                   {c.Constructor.constructorId === user?.favoriteTeam && (
+                     <p className="text-xs text-accent">{dict.teams.favorite}</p>
+                   )}
+@@ -66,7 +75,7 @@ export default async function TeamsPage() {
+ 
+               <ul className="mt-4 flex flex-wrap gap-2">
+                 {(driversByTeam.get(c.Constructor.constructorId) ?? []).map((d) => (
+-                  <li key={d.Driver.driverId}>
++                  <li key={d.Driver.driverId} className="relative z-10">
+                     <Link
+                       href={`/drivers/${d.Driver.driverId}`}
+                       className="inline-block rounded-md bg-subtle px-2.5 py-1 text-sm hover:bg-subtle-strong"
+diff --git a/web/src/components/StandingsView.tsx b/web/src/components/StandingsView.tsx
+index 92fffb5..1ac78cb 100644
+--- a/web/src/components/StandingsView.tsx
++++ b/web/src/components/StandingsView.tsx
+@@ -80,8 +80,14 @@ export default async function StandingsView({
+                         : "text-muted"
+                     }`}
+                   >
+-                    {(isCurrentSeason && overrides.get(s.Driver.driverId)?.team_name) ||
+-                      s.Constructors.at(-1)?.name}
++                    {teamId ? (
++                      <Link href={`/teams/${teamId}`} className="hover:text-accent">
++                        {(isCurrentSeason && overrides.get(s.Driver.driverId)?.team_name) ||
++                          s.Constructors.at(-1)?.name}
++                      </Link>
++                    ) : (
++                      s.Constructors.at(-1)?.name
++                    )}
+                   </td>
+                   <td className="pr-1 text-right font-semibold tabular-nums">
+                     {s.points}
+@@ -120,7 +126,12 @@ export default async function StandingsView({
+                   >
+                     <td className="py-2 pl-1 text-muted">{s.positionText}</td>
+                     <td>
+-                      {s.Constructor.name}
++                      <Link
++                        href={`/teams/${s.Constructor.constructorId}`}
++                        className="hover:text-accent"
++                      >
++                        {s.Constructor.name}
++                      </Link>
+                       {isFavorite && (
+                         <span className="ml-1.5 text-accent" title={t.favoriteTeam}>
+                           ★
+diff --git a/web/src/components/TrackMap.tsx b/web/src/components/TrackMap.tsx
+new file mode 100644
+index 0000000..dea1301
+--- /dev/null
++++ b/web/src/components/TrackMap.tsx
+@@ -0,0 +1,55 @@
++import { getCircuitOutline } from "@/lib/f1/track";
++import type { Race } from "@/lib/f1/types";
++import { fmt } from "@/lib/i18n/format";
++import { getDictionary } from "@/lib/i18n/server";
++
++// Серверний компонент: схема рахується на сервері, браузер отримує готовий SVG без JavaScript
++export default async function TrackMap({ race }: { race: Race }) {
++  const [outline, dict] = await Promise.all([getCircuitOutline(race), getDictionary()]);
++  const t = dict.race;
++
++  if (!outline) {
++    return <p className="text-sm text-muted">{t.trackUnavailable}</p>;
++  }
++
++  return (
++    <figure>
++      <svg
++        viewBox={`0 0 ${outline.width} ${outline.height}`}
++        role="img"
++        aria-label={fmt(t.trackAria, { circuit: race.Circuit.circuitName })}
++        className="mx-auto max-h-72 w-full"
++      >
++        {/* Широка підкладка + тонка лінія поверх: виглядає як дорога */}
++        <path
++          d={outline.path}
++          fill="none"
++          stroke="var(--color-line-strong)"
++          strokeWidth={22}
++          strokeLinejoin="round"
++        />
++        <path
++          d={outline.path}
++          fill="none"
++          stroke="currentColor"
++          strokeWidth={6}
++          strokeLinejoin="round"
++          className="text-foreground"
++        />
++        <circle
++          cx={outline.start[0]}
++          cy={outline.start[1]}
++          r={16}
++          className="fill-accent"
++        />
++      </svg>
++      <figcaption className="mt-2 text-xs text-muted">
++        {fmt(t.trackSource, { year: outline.year })}
++      </figcaption>
++    </figure>
++  );
++}
++
++export function TrackMapSkeleton() {
++  return <div className="h-48 animate-pulse rounded-lg bg-subtle" />;
++}
+diff --git a/web/src/data/constructor-champions.json b/web/src/data/constructor-champions.json
+new file mode 100644
+index 0000000..0967ef4
+--- /dev/null
++++ b/web/src/data/constructor-champions.json
+@@ -0,0 +1 @@
++{}
+diff --git a/web/src/lib/cms/team-details.ts b/web/src/lib/cms/team-details.ts
+new file mode 100644
+index 0000000..fc55763
+--- /dev/null
++++ b/web/src/lib/cms/team-details.ts
+@@ -0,0 +1,52 @@
++import { directusFetch } from "./directus";
++
++// Довідкові дані команд, яких немає в Jolpica: керівники, база, шасі, двигун, опис.
++// Заповнює редактор або адмін у Directus (колекція team_details)
++export type TeamDetails = {
++  id: number;
++  constructor_id: string; // constructorId з Jolpica: "mercedes", "red_bull"
++  full_name: string | null; // "Mercedes-AMG PETRONAS F1 Team"
++  base: string | null; // "Брекворт, Велика Британія"
++  team_principal: string | null;
++  technical_director: string | null;
++  chassis: string | null; // "W17"
++  power_unit: string | null; // "Mercedes"
++  first_entry: number | null; // рік дебюту
++  description: string | null; // опис українською (Markdown)
++  description_en: string | null;
++};
++
++export const TEAM_DETAILS_TAG = "team-details";
++
++const FIELDS = [
++  "id",
++  "constructor_id",
++  "full_name",
++  "base",
++  "team_principal",
++  "technical_director",
++  "chassis",
++  "power_unit",
++  "first_entry",
++  "description",
++  "description_en",
++].join(",");
++
++export async function getTeamDetails(constructorId: string): Promise<TeamDetails | null> {
++  try {
++    const rows = await directusFetch<TeamDetails[]>(
++      "/items/team_details",
++      {
++        fields: FIELDS,
++        filter: JSON.stringify({ constructor_id: { _eq: constructorId } }),
++        limit: "1",
++      },
++      { revalidate: 60, tags: [TEAM_DETAILS_TAG] },
++    );
++    return rows[0] ?? null;
++  } catch (error) {
++    // CMS недоступна або колекцію ще не створили — показуємо лише дані з API
++    console.warn("Team details unavailable:", error);
++    return null;
++  }
++}
+diff --git a/web/src/lib/f1/champions.ts b/web/src/lib/f1/champions.ts
+index 77fd73c..1ace5e6 100644
+--- a/web/src/lib/f1/champions.ts
++++ b/web/src/lib/f1/champions.ts
+@@ -1,4 +1,5 @@
+ import champions from "@/data/champions.json";
++import constructorChampions from "@/data/constructor-champions.json";
+ 
+ // { "1950": "farina", "1951": "fangio", ... }
+ const championsBySeason: Record<string, string> = champions;
+@@ -7,4 +8,16 @@ export function getTitleSeasons(driverId: string): string[] {
+   return Object.entries(championsBySeason)
+     .filter(([, id]) => id === driverId)
+     .map(([season]) => season);
+-}
+\ No newline at end of file
++}
++
++// { "1958": "vanwall", ..., "2025": "mclaren" }.
++// Порожній файл = скрипт ще не запускали (npm run data:champions)
++const constructorChampionsBySeason: Record<string, string> = constructorChampions;
++
++export const hasConstructorChampionsData = Object.keys(constructorChampionsBySeason).length > 0;
++
++export function getConstructorTitleSeasons(constructorId: string): string[] {
++  return Object.entries(constructorChampionsBySeason)
++    .filter(([, id]) => id === constructorId)
++    .map(([season]) => season);
++}
+diff --git a/web/src/lib/f1/format.ts b/web/src/lib/f1/format.ts
+index 5afc29f..b24a21b 100644
+--- a/web/src/lib/f1/format.ts
++++ b/web/src/lib/f1/format.ts
+@@ -1,4 +1,4 @@
+-import type { Session } from "./types";
++import type { Race, Session } from "./types";
+ 
+ type Locale = "uk" | "en";
+ 
+@@ -31,6 +31,18 @@ const formatters = {
+   en: makeFormatters(LOCALE_TAGS.en),
+ };
+ 
++// Початок уїкенду: перша сесія, яка є в розкладі (зазвичай перше тренування)
++export function getWeekendStart(race: Race): Date {
++  const first = race.FirstPractice ?? race.SprintQualifying ?? race.Qualifying;
++  return first ? toDate(first.date, first.time) : toDate(race.date, race.time);
++}
++
++// "6–8 березня", "30 травня – 1 червня" / "6–8 March".
++// formatRange сам прибирає повтор місяця, якщо обидві дати в одному
++export function formatDateRange(start: Date, end: Date, locale: Locale = "uk"): string {
++  return formatters[locale].dayMonth.formatRange(start, end);
++}
++
+ // Jolpica віддає дату і час окремо в UTC: "2026-03-08" + "05:00:00Z"
+ export function toDate(date: string, time?: string): Date {
+   return new Date(`${date}T${time ?? "00:00:00Z"}`);
+diff --git a/web/src/lib/f1/jolpica.ts b/web/src/lib/f1/jolpica.ts
+index 5cd834c..df58669 100644
+--- a/web/src/lib/f1/jolpica.ts
++++ b/web/src/lib/f1/jolpica.ts
+@@ -1,4 +1,5 @@
+ import type {
++  Constructor,
+   ConstructorStanding,
+   Driver,
+   DriverStanding,
+@@ -130,4 +131,37 @@ export async function getRaceWithResults(
+ 
+   const race = data.RaceTable.Races[0];
+   return race ? { race, results: race.Results } : null;
+-}
+\ No newline at end of file
++}
++
++// ---------- Команди ----------
++
++export async function getConstructor(constructorId: string): Promise<Constructor | null> {
++  const data = await jolpicaFetch<{ ConstructorTable: { Constructors: Constructor[] } }>(
++    `/constructors/${constructorId}.json`,
++  );
++  return data.ConstructorTable.Constructors[0] ?? null;
++}
++
++// Результати обох пілотів команди в кожній гонці сезону
++export async function getConstructorSeasonResults(
++  constructorId: string,
++  season = "current",
++): Promise<{ race: Race; results: RaceResult[] }[]> {
++  const data = await jolpicaFetch<{
++    RaceTable: { Races: (Race & { Results: RaceResult[] })[] };
++  }>(`/${season}/constructors/${constructorId}/results.json?limit=100`);
++
++  return data.RaceTable.Races.map(({ Results, ...race }) => ({ race, results: Results }));
++}
++
++export async function getConstructorCareerStats(constructorId: string) {
++  const [seasons, wins, seconds, thirds] = await Promise.all([
++    getTotal(`/constructors/${constructorId}/seasons.json`),
++    getTotal(`/constructors/${constructorId}/results/1.json`),
++    getTotal(`/constructors/${constructorId}/results/2.json`),
++    getTotal(`/constructors/${constructorId}/results/3.json`),
++  ]);
++
++  // Подіуми рахуються по фінішах: два пілоти команди на подіумі = 2
++  return { seasons, wins, podiums: wins + seconds + thirds };
++}
+diff --git a/web/src/lib/f1/openf1.ts b/web/src/lib/f1/openf1.ts
+index b8e6f2a..fb0b1b5 100644
+--- a/web/src/lib/f1/openf1.ts
++++ b/web/src/lib/f1/openf1.ts
+@@ -78,9 +78,14 @@ export function getSessionDrivers(sessionKey: number): Promise<OpenF1Driver[]> {
+   return openf1Fetch<OpenF1Driver[]>(`/drivers?session_key=${sessionKey}`);
+ }
+ 
+-export function getLaps(sessionKey: number, lapNumber: number): Promise<OpenF1Lap[]> {
++export function getLaps(
++  sessionKey: number,
++  lapNumber: number,
++  revalidate = DAY,
++): Promise<OpenF1Lap[]> {
+   return openf1Fetch<OpenF1Lap[]>(
+     `/laps?session_key=${sessionKey}&lap_number=${lapNumber}`,
++    revalidate,
+   );
+ }
+ 
+@@ -93,4 +98,20 @@ export function getLocations(
+   return openf1Fetch<OpenF1Location[]>(
+     `/location?session_key=${sessionKey}&date>${encodeURIComponent(from)}&date<${encodeURIComponent(to)}`,
+   );
+-}
+\ No newline at end of file
++}
++
++// Координати ОДНОГО боліда за проміжок часу (~300 точок за коло замість ~6000 для всіх).
++// Потрібні для статичної схеми траси, яка не змінюється, тому кеш довгий
++export function getDriverLocations(
++  sessionKey: number,
++  driverNumber: number,
++  from: string,
++  to: string,
++  revalidate = DAY,
++): Promise<OpenF1Location[]> {
++  return openf1Fetch<OpenF1Location[]>(
++    `/location?session_key=${sessionKey}&driver_number=${driverNumber}` +
++      `&date>${encodeURIComponent(from)}&date<${encodeURIComponent(to)}`,
++    revalidate,
++  );
++}
+diff --git a/web/src/lib/f1/track.ts b/web/src/lib/f1/track.ts
+new file mode 100644
+index 0000000..6c8b83b
+--- /dev/null
++++ b/web/src/lib/f1/track.ts
+@@ -0,0 +1,126 @@
++import { getSchedule } from "./jolpica";
++import {
++  getDriverLocations,
++  getLaps,
++  getRaceSessions,
++  type OpenF1Session,
++} from "./openf1";
++import type { Race } from "./types";
++
++// Статична схема траси: траєкторія одного пілота за одне коло.
++// Жодної анімації і лише 3 невеликі запити до OpenF1, які кешуються на місяць
++export type TrackOutline = {
++  path: string; // атрибут d для <path> у SVG
++  width: number;
++  height: number;
++  start: [number, number]; // точка старту кола
++  year: number; // рік гонки, з якої взята схема
++};
++
++const MONTH = 30 * 86400;
++const DAY_MS = 86400 * 1000;
++const HOUR_MS = 3600 * 1000;
++const FIRST_OPENF1_SEASON = 2023; // раніше OpenF1 не має координат
++const YEARS_BACK = 3;
++const VIEW_SIZE = 1000;
++const PADDING = 30;
++const MAX_POINTS = 400; // більше для плавної лінії не потрібно
++
++// Сесія OpenF1 для гонки Jolpica: шукаємо за датою (±2 дні),
++// бо назви гонок і трас у двох API записані по-різному
++async function findOpenF1Session(season: number, date: string): Promise<OpenF1Session | null> {
++  const target = Date.parse(date);
++  const sessions = await getRaceSessions(season);
++  return (
++    sessions.find(
++      (s) =>
++        Math.abs(Date.parse(s.date_start) - target) < 2 * DAY_MS &&
++        // дані з'являються в OpenF1 не одразу після фінішу
++        Date.parse(s.date_end) + 3 * HOUR_MS < Date.now(),
++    ) ?? null
++  );
++}
++
++async function buildOutline(session: OpenF1Session): Promise<Omit<TrackOutline, "year"> | null> {
++  // 3-тє коло: на старті болід ще в щільній групі, а на 1-му колі починає з решітки
++  const laps = await getLaps(session.session_key, 3, MONTH);
++  const lap = laps
++    .filter((l) => l.date_start && l.lap_duration)
++    .sort((a, b) => Date.parse(a.date_start!) - Date.parse(b.date_start!))[0];
++  if (!lap) return null;
++
++  const startMs = Date.parse(lap.date_start!);
++  const rows = await getDriverLocations(
++    session.session_key,
++    lap.driver_number,
++    new Date(startMs).toISOString(),
++    new Date(startMs + lap.lap_duration! * 1000).toISOString(),
++    MONTH,
++  );
++
++  // (0, 0) — датчик не передав дані
++  const points = rows
++    .filter((r) => r.x !== 0 || r.y !== 0)
++    .sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
++  if (points.length < 20) return null;
++
++  const xs = points.map((p) => p.x);
++  const ys = points.map((p) => p.y);
++  const minX = Math.min(...xs);
++  const maxY = Math.max(...ys);
++  const spanX = Math.max(...xs) - minX;
++  const spanY = maxY - Math.min(...ys);
++  const scale = (VIEW_SIZE - 2 * PADDING) / Math.max(spanX, spanY);
++
++  // Проріджуємо точки і переводимо в координати SVG (вісь Y у SVG направлена вниз)
++  const step = Math.ceil(points.length / MAX_POINTS);
++  const view = points
++    .filter((_, i) => i % step === 0)
++    .map((p): [number, number] => [
++      Math.round(PADDING + (p.x - minX) * scale),
++      Math.round(PADDING + (maxY - p.y) * scale),
++    ]);
++
++  const path = `M${view.map(([x, y]) => `${x} ${y}`).join("L")}Z`;
++
++  return {
++    path,
++    width: Math.round(spanX * scale + 2 * PADDING),
++    height: Math.round(spanY * scale + 2 * PADDING),
++    start: view[0],
++  };
++}
++
++// Схема з конкретної гонки (сезон + дата), якщо OpenF1 має її дані
++async function outlineFor(season: number, date: string): Promise<TrackOutline | null> {
++  const session = await findOpenF1Session(season, date);
++  if (!session) return null;
++  const outline = await buildOutline(session);
++  return outline ? { ...outline, year: season } : null;
++}
++
++// Спершу сама гонка (якщо вже відбулась), далі — та сама траса в попередні роки.
++// Так схема є і для майбутніх етапів
++export async function getCircuitOutline(race: Race): Promise<TrackOutline | null> {
++  try {
++    const season = Number(race.season);
++    if (season >= FIRST_OPENF1_SEASON) {
++      const outline = await outlineFor(season, race.date);
++      if (outline) return outline;
++    }
++
++    const oldest = Math.max(FIRST_OPENF1_SEASON, season - YEARS_BACK);
++    for (let year = season - 1; year >= oldest; year--) {
++      const schedule = await getSchedule(String(year));
++      const same = schedule.find((r) => r.Circuit.circuitId === race.Circuit.circuitId);
++      if (!same) continue;
++
++      const outline = await outlineFor(year, same.date);
++      if (outline) return outline;
++    }
++  } catch (error) {
++    // Схема — лише доповнення сторінки: якщо API недоступне, сторінка працює без неї
++    console.warn("Track outline unavailable:", error);
++  }
++  return null;
++}
+diff --git a/web/src/lib/i18n/dictionaries.ts b/web/src/lib/i18n/dictionaries.ts
+index 3859ee8..0350829 100644
+--- a/web/src/lib/i18n/dictionaries.ts
++++ b/web/src/lib/i18n/dictionaries.ts
+@@ -91,6 +91,10 @@ const uk = {
+     points: "Очки",
+     fastestLap: "Найшвидше коло:",
+     fastestLapDetail: "— {time} (коло {lap})",
++    trackTitle: "Схема траси",
++    trackSource: "За даними телеметрії OpenF1 · гонка {year} року",
++    trackUnavailable: "Схема недоступна: OpenF1 має координати лише з 2023 року.",
++    trackAria: "Схема траси {circuit}",
+     sessions: {
+       fp1: "Тренування 1",
+       fp2: "Тренування 2",
+@@ -148,6 +152,35 @@ const uk = {
+     favorite: "★ Улюблена команда",
+     pointsWins: "очок · перемог: {wins}",
+   },
++  team: {
++    back: "← Команди",
++    facts: "Про команду",
++    noFacts: "Довідкових даних ще немає.",
++    principal: "Керівник команди",
++    technicalDirector: "Технічний директор",
++    base: "База",
++    chassis: "Шасі",
++    powerUnit: "Двигун",
++    firstEntry: "Дебют у F1",
++    drivers: "Пілоти сезону",
++    about: "Історія",
++    currentSeason: "Поточний сезон",
++    position: "Позиція",
++    points: "Очки",
++    wins: "Перемоги",
++    history: "За всю історію",
++    seasons: "Сезонів",
++    podiums: "Подіуми",
++    titles: "Кубки конструкторів",
++    champion: "Чемпіон серед конструкторів:",
++    seasonResults: "Результати сезону",
++    round: "Етап",
++    race: "Гонка",
++    finishes: "Фініш пілотів",
++    wikipedia: "Детальніше у Вікіпедії ↗",
++    editInCms: "✎ Редагувати в Directus ↗",
++    createInCms: "+ Додати дані в Directus ↗",
++  },
+   news: {
+     title: "Новини",
+     titleWithCategory: "Новини: {name}",
+@@ -423,6 +456,10 @@ const en: Dictionary = {
+     points: "Points",
+     fastestLap: "Fastest lap:",
+     fastestLapDetail: "— {time} (lap {lap})",
++    trackTitle: "Track layout",
++    trackSource: "From OpenF1 telemetry · {year} race",
++    trackUnavailable: "Layout unavailable: OpenF1 only has position data from 2023 onwards.",
++    trackAria: "Layout of {circuit}",
+     sessions: {
+       fp1: "Practice 1",
+       fp2: "Practice 2",
+@@ -479,6 +516,35 @@ const en: Dictionary = {
+     favorite: "★ Favourite team",
+     pointsWins: "points · wins: {wins}",
+   },
++  team: {
++    back: "← Teams",
++    facts: "Team facts",
++    noFacts: "No reference data yet.",
++    principal: "Team principal",
++    technicalDirector: "Technical director",
++    base: "Base",
++    chassis: "Chassis",
++    powerUnit: "Power unit",
++    firstEntry: "F1 debut",
++    drivers: "Season drivers",
++    about: "History",
++    currentSeason: "Current season",
++    position: "Position",
++    points: "Points",
++    wins: "Wins",
++    history: "All-time",
++    seasons: "Seasons",
++    podiums: "Podiums",
++    titles: "Constructors' titles",
++    champion: "Constructors' champion:",
++    seasonResults: "Season results",
++    round: "Round",
++    race: "Race",
++    finishes: "Driver finishes",
++    wikipedia: "More on Wikipedia ↗",
++    editInCms: "✎ Edit in Directus ↗",
++    createInCms: "+ Add data in Directus ↗",
++  },
+   news: {
+     title: "News",
+     titleWithCategory: "News: {name}",

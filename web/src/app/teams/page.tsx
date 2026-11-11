@@ -41,7 +41,9 @@ export default async function TeamsPage() {
           {constructors.map((c) => (
             <li
               key={c.Constructor.constructorId}
-              className={`rounded-xl border bg-surface p-4 ${
+              // relative + розтягнуте посилання (after:inset-0) — клікабельна вся картка.
+              // Вкладати <a> в <a> заборонено, тому чипи пілотів лежать шаром вище (z-10)
+              className={`group relative rounded-xl border bg-surface p-4 transition-colors hover:border-accent/60 ${
                 c.Constructor.constructorId === user?.favoriteTeam
                   ? "border-accent"
                   : "border-line"
@@ -50,7 +52,14 @@ export default async function TeamsPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs text-muted">P{c.positionText}</p>
-                  <h2 className="text-xl font-bold">{c.Constructor.name}</h2>
+                  <h2 className="text-xl font-bold">
+                    <Link
+                      href={`/teams/${c.Constructor.constructorId}`}
+                      className="after:absolute after:inset-0 after:rounded-xl group-hover:text-accent"
+                    >
+                      {c.Constructor.name}
+                    </Link>
+                  </h2>
                   {c.Constructor.constructorId === user?.favoriteTeam && (
                     <p className="text-xs text-accent">{dict.teams.favorite}</p>
                   )}
@@ -66,7 +75,7 @@ export default async function TeamsPage() {
 
               <ul className="mt-4 flex flex-wrap gap-2">
                 {(driversByTeam.get(c.Constructor.constructorId) ?? []).map((d) => (
-                  <li key={d.Driver.driverId}>
+                  <li key={d.Driver.driverId} className="relative z-10">
                     <Link
                       href={`/drivers/${d.Driver.driverId}`}
                       className="inline-block rounded-md bg-subtle px-2.5 py-1 text-sm hover:bg-subtle-strong"

@@ -78,9 +78,14 @@ export function getSessionDrivers(sessionKey: number): Promise<OpenF1Driver[]> {
   return openf1Fetch<OpenF1Driver[]>(`/drivers?session_key=${sessionKey}`);
 }
 
-export function getLaps(sessionKey: number, lapNumber: number): Promise<OpenF1Lap[]> {
+export function getLaps(
+  sessionKey: number,
+  lapNumber: number,
+  revalidate = DAY,
+): Promise<OpenF1Lap[]> {
   return openf1Fetch<OpenF1Lap[]>(
     `/laps?session_key=${sessionKey}&lap_number=${lapNumber}`,
+    revalidate,
   );
 }
 
@@ -92,5 +97,21 @@ export function getLocations(
 ): Promise<OpenF1Location[]> {
   return openf1Fetch<OpenF1Location[]>(
     `/location?session_key=${sessionKey}&date>${encodeURIComponent(from)}&date<${encodeURIComponent(to)}`,
+  );
+}
+
+// Координати ОДНОГО боліда за проміжок часу (~300 точок за коло замість ~6000 для всіх).
+// Потрібні для статичної схеми траси, яка не змінюється, тому кеш довгий
+export function getDriverLocations(
+  sessionKey: number,
+  driverNumber: number,
+  from: string,
+  to: string,
+  revalidate = DAY,
+): Promise<OpenF1Location[]> {
+  return openf1Fetch<OpenF1Location[]>(
+    `/location?session_key=${sessionKey}&driver_number=${driverNumber}` +
+      `&date>${encodeURIComponent(from)}&date<${encodeURIComponent(to)}`,
+    revalidate,
   );
 }

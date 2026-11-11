@@ -64,6 +64,7 @@ export default async function DriverPage({ params }: Props) {
 
   // Злиття даних: API — основа, виправлення адміна з CMS мають пріоритет
   const apiTeam = seasonResults.at(-1)?.result.Constructor.name ?? null;
+  const teamId = seasonResults.at(-1)?.result.Constructor.constructorId ?? null;
   const team = override?.team_name ?? apiTeam;
   const number = override?.permanent_number ?? driver.permanentNumber ?? null;
   const isAdmin = user?.role === "admin";
@@ -99,9 +100,16 @@ export default async function DriverPage({ params }: Props) {
           <p className="text-muted">{driver.givenName}</p>
           <h1 className="text-4xl font-bold tracking-tight">{driver.familyName}</h1>
           <p className="mt-1 text-sm text-muted">
-            {[team, driver.nationality, plural(t.age, getAge(driver.dateOfBirth), locale)]
-              .filter(Boolean)
-              .join(" · ")}
+            {team &&
+              (teamId ? (
+                <Link href={`/teams/${teamId}`} className="hover:text-accent">
+                  {team}
+                </Link>
+              ) : (
+                team
+              ))}
+            {team && " · "}
+            {[driver.nationality, plural(t.age, getAge(driver.dateOfBirth), locale)].join(" · ")}
           </p>
 
           {/* Поза абзацом <p>: блоки й форми всередині <p> заборонені в HTML */}

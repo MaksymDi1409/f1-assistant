@@ -80,8 +80,14 @@ export default async function StandingsView({
                         : "text-muted"
                     }`}
                   >
-                    {(isCurrentSeason && overrides.get(s.Driver.driverId)?.team_name) ||
-                      s.Constructors.at(-1)?.name}
+                    {teamId ? (
+                      <Link href={`/teams/${teamId}`} className="hover:text-accent">
+                        {(isCurrentSeason && overrides.get(s.Driver.driverId)?.team_name) ||
+                          s.Constructors.at(-1)?.name}
+                      </Link>
+                    ) : (
+                      s.Constructors.at(-1)?.name
+                    )}
                   </td>
                   <td className="pr-1 text-right font-semibold tabular-nums">
                     {s.points}
@@ -120,7 +126,12 @@ export default async function StandingsView({
                   >
                     <td className="py-2 pl-1 text-muted">{s.positionText}</td>
                     <td>
-                      {s.Constructor.name}
+                      <Link
+                        href={`/teams/${s.Constructor.constructorId}`}
+                        className="hover:text-accent"
+                      >
+                        {s.Constructor.name}
+                      </Link>
                       {isFavorite && (
                         <span className="ml-1.5 text-accent" title={t.favoriteTeam}>
                           ★

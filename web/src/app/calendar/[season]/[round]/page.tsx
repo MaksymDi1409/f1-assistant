@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import TrackMap, { TrackMapSkeleton } from "@/components/TrackMap";
 import { getRace, getRaceResults } from "@/lib/f1/jolpica";
 import { formatSession, toDate } from "@/lib/f1/format";
 import type { Race, Session } from "@/lib/f1/types";
@@ -111,6 +113,14 @@ export default async function RacePage({ params }: Props) {
               {t.race.openMap}
             </a>
           </section>
+
+          {/* Схема траси вантажиться окремо: решта сторінки не чекає на OpenF1 */}
+          <section className="rounded-xl border border-line bg-surface p-4">
+            <h2 className="mb-3 font-semibold">{t.race.trackTitle}</h2>
+            <Suspense fallback={<TrackMapSkeleton />}>
+              <TrackMap race={race} />
+            </Suspense>
+          </section>
         </aside>
 
         <section>
@@ -147,7 +157,12 @@ export default async function RacePage({ params }: Props) {
                         </Link>
                       </td>
                       <td className="hidden text-muted sm:table-cell">
-                        {r.Constructor.name}
+                        <Link
+                          href={`/teams/${r.Constructor.constructorId}`}
+                          className="hover:text-accent"
+                        >
+                          {r.Constructor.name}
+                        </Link>
                       </td>
                       <td className="text-right tabular-nums text-muted">
                         {r.Time?.time ?? r.status}

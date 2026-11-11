@@ -1,4 +1,4 @@
-import type { Session } from "./types";
+import type { Race, Session } from "./types";
 
 type Locale = "uk" | "en";
 
@@ -30,6 +30,18 @@ const formatters = {
   uk: makeFormatters(LOCALE_TAGS.uk),
   en: makeFormatters(LOCALE_TAGS.en),
 };
+
+// Початок уїкенду: перша сесія, яка є в розкладі (зазвичай перше тренування)
+export function getWeekendStart(race: Race): Date {
+  const first = race.FirstPractice ?? race.SprintQualifying ?? race.Qualifying;
+  return first ? toDate(first.date, first.time) : toDate(race.date, race.time);
+}
+
+// "6–8 березня", "30 травня – 1 червня" / "6–8 March".
+// formatRange сам прибирає повтор місяця, якщо обидві дати в одному
+export function formatDateRange(start: Date, end: Date, locale: Locale = "uk"): string {
+  return formatters[locale].dayMonth.formatRange(start, end);
+}
 
 // Jolpica віддає дату і час окремо в UTC: "2026-03-08" + "05:00:00Z"
 export function toDate(date: string, time?: string): Date {

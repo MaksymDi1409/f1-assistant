@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { getSchedule } from "@/lib/f1/jolpica";
-import { formatDayMonth, toDate } from "@/lib/f1/format";
+import { formatDateRange, getWeekendStart, toDate } from "@/lib/f1/format";
 import { fmt } from "@/lib/i18n/format";
 import { getDictionary, getI18n } from "@/lib/i18n/server";
 
@@ -55,7 +55,7 @@ export default async function CalendarPage() {
                 </p>
 
                 <div className="mt-3 flex items-center gap-2 text-sm">
-                  <span>{formatDayMonth(raceDate, locale)}</span>
+                  <span>{formatDateRange(getWeekendStart(race), raceDate, locale)}</span>
                   {race.Sprint && (
                     <span className="rounded bg-subtle-strong px-1.5 py-0.5 text-xs">
                       {dict.calendar.sprint}
