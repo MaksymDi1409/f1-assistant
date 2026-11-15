@@ -20,7 +20,7 @@ export default async function ChatPage() {
   ]);
 
   // Скільки питань лишилось на сьогодні (без витрачання)
-  const { limit, remaining } = peekChatLimit(
+  const { limit, remaining } = await peekChatLimit(
     getClientKey(user, requestHeaders),
     getDailyLimit(user, settings),
   );

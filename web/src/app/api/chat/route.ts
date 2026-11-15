@@ -63,7 +63,10 @@ export async function POST(request: Request) {
   }
 
   // Ліміт перевіряємо до звернення до ШІ: інакше квота Gemini витрачалася б і на зайві запити
-  const rate = consumeChatLimit(getClientKey(user, request.headers), getDailyLimit(user, settings));
+  const rate = await consumeChatLimit(
+    getClientKey(user, request.headers),
+    getDailyLimit(user, settings),
+  );
 
   // Стандартні заголовки, за якими клієнт дізнається про ліміт
   const rateHeaders: Record<string, string> =
